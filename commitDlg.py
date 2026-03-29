@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: commitDlg.py
-# Time-stamp: <29-Mar-2026 16:08:52 goetz>
+# Time-stamp: <29-Mar-2026 16:52:23 goetz>
 # $Id: $
 #
 # Copyright (C) 2026 by LemnaTec GmbH
@@ -83,9 +83,10 @@ class CommitDialog(QFrame):
         f.setLayout(self.hbox)
 
         self.cancelBtn = QPushButton("Cancel")
-        self.commitBtn = QPushButton("Close")
+        self.commitBtn = QPushButton("Commit")
         self.pushToRem = QCheckBox("Push To remote")
         self.cancelBtn.clicked.connect(self.close)
+        self.commitBtn.clicked.connect(self.doCommit)
         self.hbox.addWidget(self.cancelBtn, 0, Qt.AlignLeft)
         self.hbox.addWidget(QLabel(""), 10)
         self.hbox.addWidget(self.pushToRem, 0, Qt.AlignLeft)
@@ -94,27 +95,66 @@ class CommitDialog(QFrame):
 
     
     def fill(self, files):
-        print(">>>>>>", files)
+        self.filesList.clear()
+        self.diffBtn   = {}
+        self.revertBtn = {}
+        self.fileItems = {}
         for f in files:
             item = QTreeWidgetItem([f, "", ""])
         #    item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            print(">>>>>> ", item.flags())
+#             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            print(">>>>>> \t", item.flags(), Qt.ItemIsUserCheckable)
+            item.setCheckState(0, Qt.Checked)
         
             self.filesList.addTopLevelItem(item)
                 
             self.diffBtn[f] = QPushButton("Diff Changes")
             self.diffBtn[f].clicked.connect(self.doDiff)
-#            self.
+            self.diffBtn[f].setMaximumWidth(100)
             self.revertBtn[f] = QPushButton("Revert Changes")
             self.revertBtn[f].clicked.connect(self.doRevert)
+            self.revertBtn[f].setMaximumWidth(100)
             self.filesList.setItemWidget(item, 1, self.diffBtn[f])
             self.filesList.setItemWidget(item, 2, self.revertBtn[f])
+            self.fileItems[f] = item
+        self.filesList.setColumnWidth(1,100)
+        self.filesList.setColumnWidth(2,100)
+#         w = 0
+#         for c in range(1,3,1):
+#             self.filesList.resizeColumnToContents(c)
+#             w += self.filesList.columnWidth(c)
+        self.filesList.setColumnWidth(0, self.width()-224)
 
-        w = 0
-        for c in range(1,3,1):
-            self.filesList.resizeColumnToContents(c)
-            w += self.filesList.columnWidth(c)
-        self.filesList.setColumnWidth(0, self.width()-w-4)
+
+
+    def doCommit(self):
+        files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
+        print("files :", files)
+
+        return
+        ref     = self.repo.head.name  
+        parents = [self.repo.head.target]  
+
+        # FIXME  how to select updates only to those files in 'files'
+        index     = self.rgd.repo.index
+        index.add_all()
+        index.write()
+        author    = Signature('Alice Author', 'alice@authors.tld')
+        committer = Signature('Cecil Committer', 'cecil@committers.tld')
+        message   = self.message.toPlainText()
+        tree      = index.write_tree()
+        self.rgd.repo.create_commit(ref, author, committer, message, tree, parents)
+        if self.pushToRem.isChecked():
+            for remote in self.rgd.repo.remotes:
+                if remote.name == remote_name:
+                    remote.push(ref)
+
+
+    def push( remote_name='origin', ref='refs/heads/master:refs/heads/master'):
+        for remote in repo.remotes:
+            if remote.name == remote_name:
+                remote.push(ref)
 
 
     def doRevert(self):
@@ -144,6 +184,9 @@ class CommitDialog(QFrame):
                 break
         if blobId1 != blobId2:
             self.rgd.doDiff(self.branch, blobId1, blobId2)
+
+
+
 
 
     def quit(self):

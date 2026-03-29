@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <21-Mar-2026 20:36:45 goetz>
+# Time-stamp: <29-Mar-2026 16:13:41 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -9,16 +9,23 @@
 #
 # Description: 
 #
-# Implement self.showHistory UI
-# Implement self.showBlame
-# Implement self.doCommit
 # Implement self.doRevert
+# Implement List local files (so we can add them)
+# FIX: added files must be listed in commit dialog
 #
-# List of tags
 #
 # Context Menu of file and dir entries
-# Branches List
-# 
+#
+#  b1 = repo.blame("css/activity.css")
+#  bhl = [ l for l in b1]
+#  bhl[1] -> final_commit_id  , lines_in_hunk , ...
+#  
+#  b2 = repo.blame("css/activity.css", newest_commit="644c64aa4b79eecb2034b3ae79a80320a04694e2")
+#  bhl2 = [ l for l in b2]
+#  
+#
+# What is status INDEX_MODIFIED
+
 
 import sys
 import os
@@ -44,6 +51,8 @@ from PySide6.QtCore    import *
 
 from data import RGitData
 from history import HistoryView
+from commitDlg import CommitDialog
+from blame     import BlameDisplay
 
 # repo.status("README.md")  -> return locally changed files
 
@@ -218,7 +227,7 @@ class RGitVersions(QMainWindow):
                            }
         self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "WT_MODIFIED", "Not Comitted", "CURRENT"]
         self.curBranch   = "main"
-        self.primaryBranches = ["main", "origin/HEAD"]
+        self.primaryBranches = ["main", "origin"]
         self.rgd         = RGitData(self.curBranch, self.primaryBranches)
 #         self.repo       =  pygit2.Repository(".")
 #         self.remotes    = list(self.repo.remotes)
@@ -291,20 +300,36 @@ class RGitVersions(QMainWindow):
 
         self.tools = self.toolFrame()
         self.toolBtn= {
-            "history":  self.addToolButton("History",    progPath+"/icons/diff.png", self.showHistory),
-            "diff"   :  self.addToolButton("Diff",       progPath+"/icons/diff.png", self.diffWithPrev),
-            "diffHead": self.addToolButton("Diff Head",  progPath+"/icons/diff.png", self.diffWithHead),
-            "revert" :  self.addToolButton("Revert",     progPath+"/icons/diff.png", self.doRevert),
-            "blame"  :  self.addToolButton("Blame",      progPath+"/icons/diff.png", self.showBlame),
-            "commit" :  self.addToolButton("Commit Locally", progPath+"/icons/diff.png", None),
-            "comPsh" :  self.addToolButton("Commit & Pushy", progPath+"/icons/diff.png", None),
-            "info"   :  self.addToolButton("Info",       progPath+"/icons/diff.png", None),
-            "Update" :  self.addToolButton("Update",     progPath+"/icons/diff.png", None),
-            "clone"  :  self.addToolButton("Clone",      progPath+"/icons/diff.png", None),
-            "branch" :  self.addToolButton("Branch",     progPath+"/icons/diff.png", None),
-            "merge"  :  self.addToolButton("Merge",      progPath+"/icons/diff.png", None),
-            "Delete" :  self.addToolButton("Delete",     progPath+"/icons/diff.png", None),
-            "reresh" :  self.addToolButton("Refresh",    progPath+"/icons/diff.png", None),
+            "history":  self.addToolButton("History",    progPath+"/icons/hist.png",
+                                           self.showHistory, "History of selected file"),
+            "diff"   :  self.addToolButton("Diff",       progPath+"/icons/diffLocal.png",
+                                           self.diffWithPrev, "Diff local changes"),
+            "diffHead": self.addToolButton("Diff Head",  progPath+"/icons/diffRemote.png",
+                                           self.diffWithHead, "Diff remote changes"),
+            "revert" :  self.addToolButton("Revert",     progPath+"/icons/revert.png",
+                                           self.doRevert, "Revert local changes"),
+            "blame"  :  self.addToolButton("Blame",      progPath+"/icons/blame.png",
+                                           self.showBlame, "Blame"),
+            "commitL":  self.addToolButton("Commit Locally", progPath+"/icons/commitLocal.png",
+                                           self.doLocalCommit, "Commit to local repo"),
+            "commit" :  self.addToolButton("Commit & Push", progPath+"/icons/commit.png",
+                                           self.doCommit, "Commit to remote repo"),
+            "push" :    self.addToolButton("Push \nLocal Commits \nto master", progPath+"/icons/push.png",
+                                           self.doPush, "Commit to remote repo"),
+            "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
+                                           None, " Repo Info"),
+            "Update" :  self.addToolButton("Update",     progPath+"/icons/update.png",
+                                           None, "Update / Pull Changes"),
+            "clone"  :  self.addToolButton("Clone",      progPath+"/icons/checkout.png",
+                                           None, "Checkout / Clone"),
+            "branch" :  self.addToolButton("Branch",     progPath+"/icons/branch.png",
+                                           None, "Branch"),
+            "merge"  :  self.addToolButton("Merge",      progPath+"/icons/merge.png",
+                                           None, "Merge"),
+            "Delete" :  self.addToolButton("Delete",     progPath+"/icons/delete.png",
+                                           None, "Delete Files from repo"),
+            "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
+                                           None, "Refresh"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
 
@@ -316,9 +341,9 @@ class RGitVersions(QMainWindow):
         self.dirTree.setMinimumSize(400,800)
         self.fileTree.setMinimumSize(1200,800)
         self.fileTree.setColumnCount(8)
-        self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches"])
+        self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags"])
         self.dirTree.setHeaderLabels(["Directory","Status"])
-        self.rootItem = QTreeWidgetItem(["root"])
+        self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
         self.dirTree.addTopLevelItem(self.rootItem)
 
         self.gbox.addWidget(self.tools,         1, 1, 1, 2)
@@ -358,15 +383,19 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.tbox)
         return f
 
-    def addToolButton(self, text, iconFile, func):
+    def addToolButton(self, text, iconFile, func, tooltip):
         toolButton = QToolButton()
-        toolButton.setMinimumHeight(56)
+        toolButton.setMinimumHeight(64)
         toolButton.setMinimumWidth(48)
         toolButton.setIcon( QIcon(iconFile))
         toolButton.setIconSize(QSize(48,48))
-        print("_-->", toolButton.iconSize())
         toolButton.setText(text)
+        print(">>toolButton>>", text)
         toolButton.setStyleSheet("QToolButton {font-size:10px;}")
+        if func is None:
+            toolButton.setToolTip(tooltip + "\n (disabled)")
+        else:
+            toolButton.setToolTip(tooltip)
         if func is not None:
             toolButton.clicked.connect(func)
         toolButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon);
@@ -581,14 +610,17 @@ class RGitVersions(QMainWindow):
 
 
     def fill(self, branch=None):
-
+        self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
+        status = self.rgd.getDirStatus(branch,  ".")
+        self.rootItem.setText(1, status)
+        self.colorizeTreeItem(self.rootItem, status)
         if branch is not None:
             for f in self.rgd.branchFiles[branch]["."]["files"]:
                 e = self.rgd.branchFiles[branch][f]
                 if len(e["files"])>0:
                     status = self.rgd.getDirStatus(branch,  f)
                     item = QTreeWidgetItem(self.rootItem, [e["name"],status])
-                    item.setData(0, Qt.UserRole , e)
+                    item.setData(0, Qt.UserRole , (e, f))
                     self.colorizeTreeItem(item, status)
                     self.__fill(branch, e,  f, item)
         QTimer.singleShot(500, self.resizeDirTree)
@@ -617,7 +649,7 @@ class RGitVersions(QMainWindow):
                 e = self.rgd.branchFiles[branch][f]
                 if len(e["files"])>0:
                     item = QTreeWidgetItem(parentItem, [e["name"], ""])
-                    item.setData(0, Qt.UserRole , e)
+                    item.setData(0, Qt.UserRole , (e, f))
                     self.__fill(branch, e,  f, item)
                     if f == "./.github/workflows":
                         print(" >>", f, "->", e["files"])
@@ -646,8 +678,8 @@ class RGitVersions(QMainWindow):
         # FIXME merge local files
         #    print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileTree.clear()
-        files  = parentItem.data(0, Qt.UserRole)["files"]
-        branch = parentItem.data(0, Qt.UserRole)["branch"]
+        files  = parentItem.data(0, Qt.UserRole)[0]["files"]
+        branch = parentItem.data(0, Qt.UserRole)[0]["branch"]
         for f in files:
             e   = self.rgd.branchFiles[branch][f]
             eid = e["id"]
@@ -671,9 +703,12 @@ class RGitVersions(QMainWindow):
             
                
             branches = self.rgd.getBranchesForPath(f)
-            item = QTreeWidgetItem([fname , status, commit.short_id, entry.short_id, "", commit.author.name ,
+            cid  = str(commit.id)
+            item = QTreeWidgetItem([fname , status, commit.short_id, entry.short_id,
+                                    self.rgd.getVersionOfCommit(cid),
+                                    commit.author.name ,
                                     datetime.datetime.fromtimestamp(commit.commit_time).strftime("%Y-%m-%d %H:%M:%S"),
-                                    branches])
+                                    branches, ", ".join(self.rgd.getTagsForCommit(cid))])
             item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator);
             item.setData(0, Qt.UserRole , (f, branch, eid))
             self.colorizeTreeItem(item, status)
@@ -787,14 +822,59 @@ class RGitVersions(QMainWindow):
 
 
 
-    def doCommit(self):
-        sel = self.fileTree.selectedItems()
-        for i,e in enumerate(sel):
-            if e == 0:
-                print("Commit  ",e.data(0, Qt.UserRole)[0])
-            else:
-                print("        ",e.data(0, Qt.UserRole)[0])
 
+
+    def __collectModifiedFiles4Commit(self, branch, path):
+        files = []
+        fl = self.rgd.collectFilesFromPath(self.curBranch, path)
+        for f in fl:
+            if self.rgd.isModified(f):
+                files.append(f)
+        return files
+
+
+    def doLocalCommit(self):
+        print("doCommit")
+        self.__doPush(push=False)
+    
+    def doPush(self):
+        pass
+    
+    def doCommit(self):
+        print("doPush")
+        self.__doPush(push=True)
+        
+    def __doPush(self, push=True):
+        print("doPush push= ", push)
+        files = []
+        sel1 = self.dirTree.selectedItems()
+        sel2 = self.fileTree.selectedItems()
+        print(" ::::" , sel1)
+        print(" ::::" , sel2)
+        for item in sel1:
+            path   = item.data(0, Qt.UserRole)[1]
+            entry  = item.data(0, Qt.UserRole)[0]
+            branch = item.data(0, Qt.UserRole)[0]["branch"]
+            if len(entry["files"])>0:
+                for f2 in self.__collectModifiedFiles4Commit( branch, path):
+                    if f2 not in files:
+                        files.append(f2)
+
+        for item in sel2:
+            
+            f = item.data(0, Qt.UserRole)[0]
+            branch = item.data(0, Qt.UserRole)[1]
+            e   = self.rgd.branchFiles[branch][f]
+            if len(e["files"])>0:
+                for f2 in self.__collectModifiedFiles4Commit( branch, f):
+                    if f2 not in files:
+                        files.append(f2)
+            elif self.rgd.isModified(f):
+                if f not in files:
+                    files.append(f)
+        print("---->", files)
+        if len(files) >0 :
+            self.commitDlg = CommitDialog(self, self.rgd, branch, files, push=push)
 
     def doRevert(self):
         sel = self.fileTree.selectedItems()
@@ -857,12 +937,16 @@ class RGitVersions(QMainWindow):
                 
     def showBlame(self):
         sel = self.fileTree.selectedItems()
+        print(">>>", sel)
         if len(sel) == 1:
             fileName = sel[0].text(0)
             filePath = sel[0].data(0, Qt.UserRole)[0]
             branch   = sel[0].data(0, Qt.UserRole)[1]
-            entryid  = sel[0].data(0, Qt.UserRole)[2]
+            entryId  = sel[0].data(0, Qt.UserRole)[2]
+            commitId = self.rgd.getCommitOfBlob(branch, entryId)
+            print ("BLAME : ", branch, entryId, commitId)
             print ("BLAME : ", filePath)
+            self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
             
     def showHistory(self):
         sel = self.fileTree.selectedItems()
