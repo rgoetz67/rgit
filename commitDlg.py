@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: commitDlg.py
-# Time-stamp: <>
+# Time-stamp: <29-Mar-2026 16:08:52 goetz>
 # $Id: $
 #
 # Copyright (C) 2026 by LemnaTec GmbH
@@ -94,7 +94,7 @@ class CommitDialog(QFrame):
 
     
     def fill(self, files):
-      
+        print(">>>>>>", files)
         for f in files:
             item = QTreeWidgetItem([f, "", ""])
         #    item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator)
@@ -104,6 +104,7 @@ class CommitDialog(QFrame):
                 
             self.diffBtn[f] = QPushButton("Diff Changes")
             self.diffBtn[f].clicked.connect(self.doDiff)
+#            self.
             self.revertBtn[f] = QPushButton("Revert Changes")
             self.revertBtn[f].clicked.connect(self.doRevert)
             self.filesList.setItemWidget(item, 1, self.diffBtn[f])
