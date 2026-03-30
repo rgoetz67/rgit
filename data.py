@@ -519,13 +519,6 @@ class RGitData():
 
 
 
-#     def nameOfEntry(self, branch, entryId):
-#         for eid,v in self.firstCommitOfBlob[branch].items():
-#             if eid == entryId:
-#                 return v["path"]
-#         return None
-
-
     def getDifFile(self, branch, filePath , blobId):
         if self.repo.workdir[-1] in ["/","\\"]:
             wd = self.repo.workdir[:-1]
@@ -538,8 +531,6 @@ class RGitData():
                 else:
                     return wd + "/"  + filePath
             return None
-#         if filePath in self.repoFiles:
-#             return self.repo.workdir + "/"  + filePath
         
         entry    = self.repo.get(blobId)
         commitId = self.firstCommitOfBlob[branch][blobId][filePath][0]
