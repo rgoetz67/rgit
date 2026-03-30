@@ -655,6 +655,7 @@ class RGitData():
         self.repo.create_commit(ref, author, committer, message, tree, parents)
         if pushToRemote:
             self.push()
+        return True
 
 
 

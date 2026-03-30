@@ -724,6 +724,7 @@ class RGitVersions(QMainWindow):
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
         self.dirTree.addTopLevelItem(self.rootItem)
         self.fill(self.curBranch)
+        self.rootItem.setExpanded(True)
         items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
 
         for item in items:
