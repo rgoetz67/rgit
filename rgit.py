@@ -329,7 +329,7 @@ class RGitVersions(QMainWindow):
             "Delete" :  self.addToolButton("Delete",     progPath+"/icons/delete.png",
                                            None, "Delete Files from repo"),
             "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
-                                           None, "Refresh"),
+                                           self.refreshTrees, "Refresh"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
 
@@ -714,6 +714,25 @@ class RGitVersions(QMainWindow):
             self.colorizeTreeItem(item, status)
             self.fileTree.addTopLevelItem(item)
         self.resizeFileTree()
+
+    def refreshTrees(self):
+        sel = self.dirTree.selectedItems()
+        dirName = sel[0].text(0)
+
+        self.dirTree.clear()
+        # self.fileTree.clear()
+        self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
+        self.dirTree.addTopLevelItem(self.rootItem)
+        self.fill(self.curBranch)
+        items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
+
+        for item in items:
+            if item.text(0) == dirName:
+                self.dirTree.setCurrentItem(item)
+                self.showFiles(item)
+                break
+        
+        
 #        QTimer.singleShot(200, self.resizeFileTree)
 
 #     def __activePath(self, f):
@@ -875,6 +894,7 @@ class RGitVersions(QMainWindow):
         print("---->", files)
         if len(files) >0 :
             self.commitDlg = CommitDialog(self, self.rgd, branch, files, push=push)
+            self.commitDlg.commitExecuted.connect(self.refreshTrees)
 
     def doRevert(self):
         sel = self.fileTree.selectedItems()

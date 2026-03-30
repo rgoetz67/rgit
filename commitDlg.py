@@ -33,7 +33,8 @@ from PySide6.QtPrintSupport import QPrinter
 from data import GitCallbacks
 
 class CommitDialog(QFrame):
-
+    commitExecuted = Signal()
+    
     def __init__(self, pwin, rgd, branch, files, push=True):
         super().__init__()
         self.pwin = pwin
@@ -127,6 +128,7 @@ class CommitDialog(QFrame):
     def doCommit(self):
         files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
         self.rgd.commitFiles(files, self.message.toPlainText(), self.pushToRem.isChecked())
+        self.commitExecuted.emit()
         self.close()
 
 
