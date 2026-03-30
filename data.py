@@ -39,6 +39,40 @@ import subprocess
 from collections import defaultdict
 import pygit2
 import numpy as np
+from PySide6.QtWidgets import *
+from PySide6.QtGui     import *
+from PySide6.QtCore    import *
+
+
+class GitCallbacks(pygit2.RemoteCallbacks):
+    def __init__(self, user=None, token=None, pub_key=None, priv_key=None, passphrase=None):
+        self.user = user
+        self.token = token
+        self.pub_key = pub_key
+        self.priv_key = priv_key
+        self.passphrase = passphrase
+
+    def credentials(self, url, username_from_url, allowed_types):
+        if allowed_types & pygit2.enums.CredentialType.USERNAME:
+            return pygit2.Username(self.user)
+        elif allowed_types & pygit2.enums.CredentialType.USERPASS_PLAINTEXT:
+            return pygit2.UserPass(self.user, self.token)
+        elif allowed_types & pygit2.enums.CredentialType.SSH_KEY:
+            return pygit2.Keypair(username_from_url, self.pub_key, self.priv_key, self.passphrase)
+        else:
+            return None
+
+    def push_update_reference(self, refname, message):
+        if message is not None:
+            raise GitError("Push of {} failed - error message is: {}".format(refname, message))
+
+    def certificate_check(self, certificate, valid, host):
+        return True
+
+
+    def transfer_progress(self, stats):
+        print("Retrieved objects: {}/{}".format(stats.indexed_objects, stats.total_objects), end="\r")
+
 
     # self.firstCommitOfBlob[branch][blob.id][path] = [firstCommit.id, firstCommitTime, blob.id]   ->cached
     # self.allCommitIds [branch]     = set( commitId)     -> cached
@@ -60,6 +94,8 @@ class RGitData():
 
     def __init__(self, curBranch, primaryBranches):
         self.curBranch       = curBranch
+        self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        
         self.repo            = pygit2.Repository(".")
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
@@ -542,24 +578,30 @@ class RGitData():
 
 
     def doDiff(self, branch, file1, blobId1, file2, blobId2):
-        filePath1 = self.getDifFile(branch, file1, blobId1)
-        filePath2 = self.getDifFile(branch, file2, blobId2)
-        print("DIFF ", blobId1, filePath1)
-        print("  vs ", blobId2, filePath2)
-        cmd = re.sub("%2", filePath2, re.sub("%1", filePath1, self.diffCommand))
-        print("CMD :", cmd)
-        p = subprocess.Popen(cmd, shell = True)
-        p.wait()
-        print("compare done")
+        self.diffFilePath1 = self.getDifFile(branch, file1, blobId1)
+        self.diffFilePath2 = self.getDifFile(branch, file2, blobId2)
+        print("DIFF  ", self.diffFilePath1, blobId1)
+        print("  vs  ", self.diffFilePath2, blobId2)
+        cmd = re.sub("%2", self.diffFilePath2, re.sub("%1", self.diffFilePath1, self.diffCommand))
+        self.diffProc = subprocess.Popen(cmd, shell = True)
+        QTimer.singleShot(500, self.__checkDiffStatus)
+
+    def __checkDiffStatus(self):
+        if self.diffProc.poll() is None:
+            QTimer.singleShot(500, self.__checkDiffStatus)
+            return
+        self.diffProc.wait()
         l = len(self.repo.workdir)
-        if filePath1[:l] != self.repo.workdir:
-            print(" DELETE ", filePath1)
-           #os.unlink(filePath1)
-        if filePath2[:l] != self.repo.workdir:
-            print(" DELETE ", filePath2)
-#           os.unlink(filePath2)
-
-
+        if self.diffFilePath1[:l] != self.repo.workdir:
+            print(" DELETE ", self.diffFilePath1)
+            os.unlink(self.diffFilePath1)
+        if self.diffFilePath2[:l] != self.repo.workdir:
+            print(" DELETE ", self.diffFilePath2)
+            os.unlink(self.diffFilePath2)
+        self.diffProc = None
+        self.diffFilePath1 = None
+        self.diffFilePath2 = None
+            
     def getCommitOfBlob(self, branch, path, blobId):
         if branch in self.firstCommitOfBlob:
             if blobId in self.firstCommitOfBlob[branch]:
@@ -592,3 +634,37 @@ class RGitData():
         print(">>>>>", os.path.basename(os.path.dirname(p)) )
         return os.path.basename(os.path.dirname(p))
                                              
+
+
+    def commitFiles(self, files, message, pushToRemote):
+        ref     = self.repo.head.name  
+        parents = [self.repo.head.target]
+                    
+        index     = self.repo.index
+        for f in files:
+            if f[:2] == "./":
+                index.add(f[2:])
+            else:
+                index.add(f)
+        index.write()
+        author    = pygit2.Signature(self.globalConfig["user.name"],
+                                     self.globalConfig["user.email"])
+        committer = pygit2.Signature(self.globalConfig["user.name"],
+                                     self.globalConfig["user.email"])
+        tree      = index.write_tree()
+        self.repo.create_commit(ref, author, committer, message, tree, parents)
+        if pushToRemote:
+            self.push()
+
+
+
+    def push(self, remote_name='origin', branch="main"):
+        if sys.platform == "win32":
+            pass
+        else:
+            privKeyFile = os.environ("HOME")+"/.ssh/id_rsa"
+            publKeyFile = os.environ("HOME")+"/.ssh/id_rsa.pub"
+        for remote in self.repo.remotes:
+            if remote.name == remote_name:
+                remote.push(['refs/heads/'+branch],
+                            callbacks=GitCallbacks(priv_key=privKeyFile, pub_key=publKeyFile))

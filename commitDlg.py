@@ -30,7 +30,7 @@ from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
 
 
-
+from data import GitCallbacks
 
 class CommitDialog(QFrame):
 
@@ -130,31 +130,36 @@ class CommitDialog(QFrame):
 
     def doCommit(self):
         files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
-        print("files :", files)
+#         message   = self.message.toPlainText()
+        self.rgd.commitFiles(files, self.message.toPlainText(), self.pushToRem.isChecked())
+#         print("files :", files)
+#         ref     = self.repo.head.name  
+#         parents = [self.repo.head.target]  
 
-        return
-        ref     = self.repo.head.name  
-        parents = [self.repo.head.target]  
+#         # FIXME  how to select updates only to those files in 'files'
+#         index     = self.rgd.repo.index
+#         for f in files:
+#             index.add(f)
+#         index.write()
+#         author    = pygit2.Signature(self.rgd.globalConfig["user.name"],
+#                                      self.rgd.globalConfig["user.email"])
+#         committer = pygit2.Signature(self.rgd.globalConfig["user.name"],
+#                                      self.rgd.globalConfig["user.email"])
+#         tree      = index.write_tree()
+#         self.rgd.repo.create_commit(ref, author, committer, message, tree, parents)
+#         if self.pushToRem.isChecked():
+#             self.push()
 
-        # FIXME  how to select updates only to those files in 'files'
-        index     = self.rgd.repo.index
-        index.add_all()
-        index.write()
-        author    = Signature('Alice Author', 'alice@authors.tld')
-        committer = Signature('Cecil Committer', 'cecil@committers.tld')
-        message   = self.message.toPlainText()
-        tree      = index.write_tree()
-        self.rgd.repo.create_commit(ref, author, committer, message, tree, parents)
-        if self.pushToRem.isChecked():
-            for remote in self.rgd.repo.remotes:
-                if remote.name == remote_name:
-                    remote.push(ref)
-
-
-    def push( remote_name='origin', ref='refs/heads/master:refs/heads/master'):
-        for remote in repo.remotes:
-            if remote.name == remote_name:
-                remote.push(ref)
+#     def push(self, remote_name='origin', branch="main"):
+#         if sys.platform == "win32":
+#             pass
+#         else:
+#             privKeyFile = os.enviton("HOME")+"/.ssh/id_rsa"
+#             publKeyFile = os.enviton("HOME")+"/.ssh/id_rsa.pub"
+#         for remote in self.rgd.repo.remotes:
+#             if remote.name == remote_name:
+#                 remote.push(['refs/heads/'+branch],
+#                             callbacks=GitCallbacks(priv_key=privKeyFile, pub_key=publKeyFile))
 
 
     def doRevert(self):
@@ -167,11 +172,11 @@ class CommitDialog(QFrame):
                 print("diff prev:", f)
                 e   = self.rgd.branchFiles[self.branch][f]
                 eid = e["id"]
-                commitId = self.rgd.getCommitOfBlob(branch, f, eid)
+                commitId = self.rgd.getCommitOfBlob(self.branch, f, eid)
                 commit   = self.rgd.repo.get(commitId)
                 prevBlobId = self.rgd.previousCommit(self.branch, f,
                                                      str(commit.id), commit.commit_time)
-                self.rgd.doDiff(self.branch, f, eid, f, prevBlobId)
+                self.rgd.doDiff(self.branch, f, None, f, eid)
             
         return
         for eid in self.rb1:
