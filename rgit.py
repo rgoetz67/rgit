@@ -54,114 +54,8 @@ from history import HistoryView
 from commitDlg import CommitDialog
 from blame     import BlameDisplay
 
-# repo.status("README.md")  -> return locally changed files
-
-
-# def __scanDir(p):
-#     prev = os.getcwd()
-#     os.chdir(p)
-#     tree = {}
-#     fl = glob.glob("*") + glob.glob(".??*")
-#     fl2 = glob.glob(".??*")
-#     for f in fl:
-#         if os.path.isdir(f):
-#             if f not in [".git", "github", ".devcontainer"]:
-#                 tree[f] = __scanDir(f)
-#         else:
-#             tree[f] = None
-#     os.chdir(prev)
-#     return tree
-
-            
-
-# def filesInLocalRepo(localRepoPath):
-#     return __scanDir(localRepoPath)
-
-
-
-# def __scanGitTree(repo, tree, path):
-#     et = {}
-#     for entry in tree:
-#         name = entry.name
-#         if entry.filemode == pygit2.GIT_FILEMODE_TREE:
-#             nextTree = repo.get(entry.id)
-#             et[name] = (entry,
-#                         __scanGitTree(repo, nextTree, path+"/"+entry.name),
-#                         path+"/"+entry.name)
-#         else:
-#             et[name] = (entry, None, path+"/"+entry.name)
-#     return et
-
-
-# def lsTree(repo, branch):
-#     tree = repo.revparse_single(branch).tree
-#     return __scanGitTree(repo, tree, ".")
-
-
-
-# def __scanGitTreeFP(repoFiles, repo, tree, path):
-#     for entry in tree:
-#         name = path+"/"+entry.name
-#         if entry.filemode == pygit2.GIT_FILEMODE_TREE:
-#             nextTree = repo.get(entry.id)
-#             repoFiles[name] = (entry, True, entry.name)
-#             __scanGitTreeFP(repoFiles, repo, nextTree, path+"/"+entry.name),
-#         else:
-#             repoFiles[name] = (entry, False, entry.name)
-#     return repoFiles
-
-
-# def lsTreeFP(repo, branch, indexByFullPath=False):
-#     repoFiles = {}
-#     tree = repo.revparse_single(branch).tree
-#     return __scanGitTreeFP(repoFiles, repo, tree, ".")
-
-
-
 from collections import defaultdict
-
-
-# def collectCommitsFromTree(tree, commit):
-#     global commitByObj, allCommits
-#     for e in tree:
-#         allCommits[e.id].append( commit)
-
-#         if e.filemode == pygit2.GIT_FILEMODE_TREE:
-#             nextTree = repo.get(e.id)
-#             collectCommitsFromTree(nextTree, commit)
-#         else:
-#             if e.id in commitByObj:
-#                 if commitByObj[e.id].commit_time > commit.commit_time:
-#                     commitByObj[e.id] = commit
-#             else:
-#                 commitByObj[e.id] = commit
-
-
-
-# def collectCommits(repo):
-#     global commitByObj, allCommits
-#     commitByObj = {}
-#     allCommits  = defaultdict(list)
-#   #  commitByName = {}
-#     walker = repo.walk(repo.head.target, pygit2.GIT_SORT_TIME)
-#     commitList = list(reversed([c  for c in walker]))
-#     for commit in commitList:
-#         for e in commit.tree:
-#             allCommits[e.id].append( commit)
-#             if e.filemode == pygit2.GIT_FILEMODE_TREE:
-#                 nextTree = repo.get(e.id)
-#                 collectCommitsFromTree(nextTree, commit)
-#             else:
-#                 if e.id in commitByObj:
-#                     if commitByObj[e.id].commit_time > commit.commit_time:
-#                         commitByObj[e.id] = commit
-#                 else:
-#                     commitByObj[e.id] = commit
-# #            commitByName[e.name] = commit
-# #    return commitByObj, commitByName
-#     return commitByObj
-
-# # collectCommits(repo)
+import pygit2
 
 
 class RToolButton(QToolButton):
@@ -172,37 +66,8 @@ class RToolButton(QToolButton):
 
 
 
-import pygit2
 
-# FUNCTIONS:
-#    UPDATE
-#    COMMIT
-#    COMMIT & PUSH
-#    HISTORY
-#    DIFF
-#    BLAME
-#    REVERT
-#    REVERT FROM REMOTE
-#
-#    BRANCH
-#    SWITCH BRANCH
 class RGitVersions(QMainWindow):
-
-
-
-
-    # self.blobPath[branch][blob.id] = {"Path":path, "lastCommit": (lastCommit.id, lastCommitTime, blob.id)}   ->cached
-    # self.allCommitIds [branch]     = set( commitId)     -> cached
-    # ### self.branchPath[branch] = [path]
-    # self.branchPath[path] = [branches]
-    # self.repoFiles[path] = { "name":name, 
-    #                          "isDir":  bool
-    #                          "lastCommit" : (commit.id, commitTime) 
-    #                          "commits" : [(commit.id, commitTime, blob.id/tree.id) ....]
-    #                          "files" : [ path, ....]}   -> cached and updated on start
-    # global cache: repoFiles
-    # branchCache : blobPath allCommitIds  
-    
 
     
     def __init__(self, argv):
@@ -229,58 +94,6 @@ class RGitVersions(QMainWindow):
         self.curBranch   = "main"
         self.primaryBranches = ["main", "origin"]
         self.rgd         = RGitData(self.curBranch, self.primaryBranches)
-#         self.repo       =  pygit2.Repository(".")
-#         self.remotes    = list(self.repo.remotes)
-        
-#         for rem in self.remotes:
-#             print("REMOTE: ", rem.name, rem.url, type(rem))
-#             self.repo[rem.name] = pygit2.Repository(rem.url)
-#         self.branches   = {"local": list(self.repo.branches.local),
-#                            "remote" : list(self.repo.branches.remote)}
-
-#         self.localFiles = filesInLocalRepo(".")
-
-#         self.allCommits   = {"local" : defaultdict(dict)}
-#         self.allObjects   = {"local" : defaultdict(dict)}
-#         self.commitByObj  = {"local" : defaultdict(dict)}
-#         self.repoFiles    = {}
-#         self.lastObj      = {"local" : defaultdict(dict)}
-#         self.treeSet      = {"local" : defaultdict(dict)}
-#         self.blobSet      = {"local" : defaultdict(dict)}
-#         self.blobPath     = defaultdict(dict)
-#         self.branchFiles  = defaultdict(dict)
-#         self.allCommitIds = defaultdict(set)
-#         self.branchPath   = defaultdict(set)
-#         self.collectedBranched = set()
-
-#         self.primaryBranches = ["main", "origin/HEAD"]
-#         self.loadCaches(self.primaryBranches)
-        #         self.repoFiles["local"]  = lsTree(self.repo, self.curBranch)
-        #         self.repoFiles["remote"] = lsTreeFP(self.repo, "origin")
-#         t0 = time.time()
-#         print("------")
-#         self.getBranchFiles(self.curBranch)
-# #        self.getFileList(self.curBranch)
-#         print("------")
-#         self.getBranchFiles("origin/HEAD")
-#         self.branches = {"local" : list(self.repo.branches.local),
-#                          "remote": list(self.repo.branches.remote)}
-        
-# #        self.getFileList("origin")
-#         print("------> %7.2fs" %(time.time()-t0))
-        
-#         self.collectCommits("main")
-#         print("------------> %7.2fs" %(time.time()-t0))
-#         self.collectCommits("origin/HEAD")
-#         print("-----------------> %7.2fs" %(time.time()-t0))
-# #         for b in self.branches["local"] +self.branches["remote"] :
-# #             if b not in self.collectedBranched:
-# #                 t1 =time.time()
-# #                 self.collectCommits(b)
-# #                 print("-----------------> %7.2fs   (%7.2fs)" %(time.time()-t0, time.time()-t1))
-                
-#         self.postProcess()
-#         self.saveCaches(self.primaryBranches, repoFiles=True)
         self.initUI()
         for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
             self.branchSelect.addItem(b)
@@ -403,198 +216,10 @@ class RGitVersions(QMainWindow):
         return  toolButton
 
 
-    
-#     def __getFileList(self, branch, tree, parentPath):
-#         files = []
-#         for entry in tree:
-#             seid =str(entry.id)
-#             path = parentPath+entry.name
-#             files.append(path)
-#             if entry.filemode == pygit2.GIT_FILEMODE_TREE:
-#                 path    += "/"
-#                 nextTree = self.repo.get(entry.id)
-#                 self.repoFiles[path] = self.__newRepoFile(entry.name, isDir=True, branch=branch,
-#                                                           files= self.__getFileList(branch, nextTree, path))
-#                 self.treeSet[branch][entry.id]  = entry
-#                 self.blobPath[branch][seid] = {"path": path,  "lastCommit":["", 0]}
-#             else:
-#                 self.repoFiles[path] = self.__newRepoFile(entry.name, branch=branch)
-#                 self.blobSet[branch][entry.id]  = entry
-#                 self.blobPath[branch][seid] = {"path":path,  "lastCommit":["", 0]}
-#         return files
-
-
-
-#     def __scanBranchTree(self, branch, tree, parentPath):
-#         files = []
-#         for entry in tree:
-#             path = parentPath+"/"+entry.name
-#             self.branchFiles[branch][parentPath]["files"].append(path)
-#             self.branchFiles[branch][path] = {"id":str(entry.id), "name":entry.name, "branch":branch, "files":[]}
-#             if entry.filemode == pygit2.GIT_FILEMODE_TREE:
-#                 nextTree = self.repo.get(entry.id)
-#                 self.__scanBranchTree(branch, nextTree, path)
-
-    
-
-#     def getBranchFiles(self, branch):
-#         self.branchFiles[branch] = {"." :{"id":None, "name":"", "branch":branch, "files":[]} }
-#         tree = self.repo.revparse_single(branch).tree
-#         self.__scanBranchTree(branch, tree, ".")
-# #        print(">>>>>", self.branchFiles.keys())
-# #         self.blobPath[branch]  = {}
-# #         self.treeSet[branch]   = {}
-# #         self.blobSet[branch]   = {}
-        
-# #         if "./" not in self.repoFiles:
-# #             self.repoFiles["./"] = self.__newRepoFile("./", isDir=True, branch=branch,
-# #                                                      files= self.__getFileList(branch, tree, "./"))
-
-
-#     def __newRepoFile( self, name, isDir=False,  files = None):
-#         commits = []
-#         return  { "name":name,
-#                   "isDir":isDir,
-#                   "commits": commits ,
-#                   "files" :files or []
-#                   }
-
-
-#     def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
-#         repo   = self.repo
-#         for e in tree:
-#             path = parentPath+"/"+ e.name
-# #             if e.name == "command-rebase.yml":
-# #                 print("\t\t found ", e.name, branchName)
-#             if e.filemode == pygit2.GIT_FILEMODE_TREE:
-#                 isDir = True
-#             else:
-#                 isDir = False
-
-#             if path not in  self.repoFiles:
-#                 print("\t * add path to repoFiles:", path)
-#                 self.repoFiles[path] = self.__newRepoFile(e.name, isDir=isDir)
-#             else:
-#                 self.branchPath[path].add(branchName)
-
-#             if path not in self.repoFiles[parentPath]["files"]:
-#                 self.repoFiles[parentPath]["files"].append(path)
-
-                
-#             if isDir:
-#                 nextTree = repo.get(e.id)
-#                 self.collectBlobsFromTree(branchName,nextTree, commit,path)
-#             esid = str(e.id)
-#             com  = [str(commit.id), commit.commit_time, str(e.id)]
-#             if esid in self.blobPath:
-#                 if commit.commit_time < self.blobPath[branchName][esid]["lastCommit"][1]:
-#                     self.blobPath[branchName][esid]["lastCommit"] = com
-#             else:
-#                 self.blobPath[branchName][esid] = {"path":path, "lastCommit":com}
-
-
-#     def addBranchToCommits(self, branchName, tree, commit, parentPath):
-#         repo   = self.repo
-#         for e in tree:
-#             path = parentPath+"/"+ e.name
-#             self.branchPath[path].add(branchName)
-
-
-#     def collectCommits(self, branchName):
-#         print("collectCommits", branchName)
-#         self.collectedBranched.add(branchName)
-#         if branchName not in self.allCommitIds:
-#             self.allCommitIds[branchName] = set()
-#         if branchName not in self.blobPath:
-#             self.blobPath[branchName] = {}
-        
-#         repo   = self.repo
-#         walker = repo.walk(repo.head.target, pygit2.GIT_SORT_TIME )
-#         commitList = list([c  for c in walker])
-#         if "." not in self.repoFiles:
-#             self.repoFiles["."] = self.__newRepoFile(".", isDir=True)
-#         prevTime = commitList[0].commit_time +10
-#         for commit in commitList:
-#             if commit.id in self.allCommitIds[branchName]:
-#                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
-#             if str(commit.id) not in self.allCommitIds[branchName]:
-#                 self.allCommitIds[branchName].add(str(commit.id))
-#                 self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
-
-#         for eid in self.blobPath[branchName]:
-#             path       = self.blobPath[branchName][eid]["path"]
-#             lastCommit = self.blobPath[branchName][eid]["lastCommit"]
-#             if path not in  self.repoFiles:
-#                 self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
-#             if len(lastCommit) != 3:
-#                 print(">>lastC>>>", lastCommit)
-#             if lastCommit[1] >0:
-#                 self.repoFiles[path]["commits"].append(lastCommit )
-
-            
-
-#     def postProcess(self):
-#         for p in self.repoFiles:
-#             tmp = list(set([ tuple(e)   for e in self.repoFiles[p]["commits"]]))
-#             self.repoFiles[p]["commits"] = [list(e)  for e in tmp]
-#         for path in self.repoFiles:
-#             self.repoFiles[path]["commits"] = list(sorted(self.repoFiles[path]["commits"],  key=lambda x:x[1]))
-#             if len(self.repoFiles[path]["commits"] )>0:
-#                 self.repoFiles[path]["lastCommit"] = self.repoFiles[path]["commits"][-1]
-#             else:
-#                 if not self.repoFiles[path]["isDir"]:
-#                     print("No commits for ", path, "\t", self.repoFiles[path]["isDir"])
-#                     #                print("No commits for ", path, "\t", self.repoFiles[path]["isDir"])
-
-
     def switchBranch(self, branch):
         self.rgd.getBranchData(branch)
         print(" FIXME: switch branch on file system")
         
-
-#     def loadCaches(self, branches):
-#         if not os.path.exists(".rgc"):
-#             os.makedirs(".rgc")
-#         if os.path.exists(".rgc/__rf__"):
-#             with open(".rgc/__rf__") as inp:
-#                 print("LOAD RF CACHE")
-#                 self.repoFiles = json.load(inp)
-#         for branch in branches:
-#             self.loadBranchCache(branch)
-
-            
-#     def loadBranchCache(self, branch):
-#         cf = ".rgc/"+branch
-#         if not os.path.exists(os.path.dirname(cf)):
-#             os.makedirs(os.path.dirname(cf))
-#         if os.path.exists(cf):
-#             with open(cf) as inp:
-#                 print("LOAD  %s CACHE"% branch)
-#                 conf =json.load(inp)
-#                 self.blobPath[branch] = conf["blobs"]
-#                 self.allCommitIds[branch] = set(conf["commits"])
-#             for e in self.blobPath[branch].values():
-#                 self.branchPath[e["path"]].add(branch)
-                
-
-#     def saveCaches(self, branches, repoFiles=False):
-#         if not os.path.exists(".rgc"):
-#             os.makedirs(".rgc")
-#         if repoFiles:
-#             with open(".rgc/__rf__", "w") as out:
-#                 print("SAVE RF CACHE")
-#                 json.dump(self.repoFiles, out , indent=4)
-#         for branch in branches:
-#             cf = ".rgc/"+branch
-#             if not os.path.exists(os.path.dirname(cf)):
-#                 os.makedirs(os.path.dirname(cf))
-
-#             with open(cf, "w") as out:
-#                 print("SAVE %s CACHE" % branch)
-#                 cache = {"blobs"     : self.blobPath[branch],
-#                          "commits"   : list(self.allCommitIds[branch])
-#                          }
-#                 json.dump(cache, out , indent=4)
 
 
     def resizeDirTree(self):
@@ -625,53 +250,14 @@ class RGitVersions(QMainWindow):
                     self.__fill(branch, e,  f, item)
         QTimer.singleShot(500, self.resizeDirTree)
     
-#         for c in range(2):
-#             self.dirTree.resizeColumnToContents(c)
-
-        #        print(">>>>>>", self.repoFiles.keys())
-        # print(">>>>>>>>>>", self.repoFiles["."]["files"])
-#         for f in self.repoFiles["."]["files"]:
-#             p =self.__activePath(f)
-#             if p is None:
-#                 continue
-                
-#             if self.curBranch in  self.repoFiles[p]["branches"]:
-#                 e = self.repoFiles[p]
-#                 if e["isDir"]:
-#                     item = QTreeWidgetItem(self.rootItem, [e["name"]])
-#                     item.setData(0, Qt.UserRole , e)
-#                     self.__fill(e,  item)
-                
 
     def __fill(self, branch, parentElem, parentPath, parentItem):
         for f in parentElem["files"]:
-#           for f in self.branchFiles[branch][parentPath]["files"]:
-                e = self.rgd.branchFiles[branch][f]
-                if len(e["files"])>0:
-                    item = QTreeWidgetItem(parentItem, [e["name"], ""])
-                    item.setData(0, Qt.UserRole , (e, f))
-                    self.__fill(branch, e,  f, item)
-                    if f == "./.github/workflows":
-                        print(" >>", f, "->", e["files"])
-
-
-#              if self.curBranch in  self.repoFiles[p]["branches"]:
-#                 e = self.repoFiles[p]
-#                 if e["isDir"]:
-#                     item = QTreeWidgetItem(parentItem, [e["name"]])
-#                     item.setData(0, Qt.UserRole , e)
-#                     self.__fill(e, item)
-
-
-#     def scanStatus(self, treeItem):
-#         files  = treeItem.data(0, Qt.UserRole)["files"]
-#         branch = treeItem.data(0, Qt.UserRole)["branch"]
-#         for f in parentItem.data(0, Qt.UserRole)["files"]:
-#             e   = self.branchFiles[branch][f]
-#             eid = e["id"]
-#             entry  = self.repo.get(eid)
-#             status = RGitVersions.getFileStatus(self.repo, self.repoFiles, e, eid, f)
-
+            e = self.rgd.branchFiles[branch][f]
+            if len(e["files"])>0:
+                item = QTreeWidgetItem(parentItem, [e["name"], ""])
+                item.setData(0, Qt.UserRole , (e, f))
+                self.__fill(branch, e,  f, item)
 
 
     def fillFileList(self, parentItem):
@@ -684,10 +270,6 @@ class RGitVersions(QMainWindow):
             e   = self.rgd.branchFiles[branch][f]
             eid = e["id"]
             entry = self.rgd.repo.get(eid)
-#             print(f, e["files"])
-            #   print(">>>>>", entry)
-#             if f == "./.github/workflows":
-#                 print(" >lf>", f, "->", e["files"])
 
             if len(e["files"])>0:
                 fname = os.path.basename(f) +"/"
@@ -734,95 +316,6 @@ class RGitVersions(QMainWindow):
                 break
         
         
-#        QTimer.singleShot(200, self.resizeFileTree)
-
-#     def __activePath(self, f):
-#         d = f+"/"
-#         if f in self.rgd.repoFiles:
-#             p = f
-#         elif d in self.repoFiles:
-#             p = d
-#         else:
-#             print("??????????",f )
-#             return None
-#         return p
- 
-
-
-#     def getFileStatus(self, eid, path):
-#         if path[:2] == "./":
-#             status = self.rgd.repo.status_file(path[2:]).name
-#         else:
-#             status = self.rgd.repo.status_file(path).name
-#         if path in self.rgd.repoFiles:
-#             if "lastCommit" not in self.rgd.repoFiles[path] :
-#                 status = "Not Commited"
-#             elif self.rgd.repoFiles[path]["lastCommit"][2] != eid:
-#                 if status == "CURRENT":
-#                     status="Remote Update"
-#                 elif status ==  "WT_MODIFIED":
-#                     status="CONFLICT"
-#                 else:
-#                     status+=" and Remote Update"
-#                     print("  \t\t ", path, " updated  but local says = ", status)
-#         return status
-
-#     def getDirStatus(self, branch, files, path):
-#         statusDict = self.__getDirStatus(branch, files, path)
-#         nStat      =  np.sum(np.array(list(statusDict.values())))
-#         if nStat == 0:
-#             return "No Status"
-            
-#         if nStat == 1:   # only a single status
-#             status = [s  for s,v in statusDict.items() if v][0]
-#             print(" ** getDirStatus :", status, path)
-#             return status
-
-#         # Check for only a single status + CURRENT
-#         del(statusDict["CURRENT"])
-#         nStat      =  np.sum(np.array(list(statusDict.values())))
-#         if nStat == 1:
-#             status = [s  for s,v in statusDict.items() if v][0]
-#             print(" ** getDirStatus :", status, path)
-#             return status
-
-#         # Check status from most important to least
-#         for s in self.statusOrder:
-#             if s in statusDict:
-#                 if statusDict[s]:
-#                     return s+" ++"
-#         return "Unknown"
-            
-
-#     def __getDirStatus(self, branch, files, path):
-#         mergedStatus = {"Not Commited": False,
-#                         "CURRENT"     : False,
-#                         "WT_MODIFIED" : False,
-#                         "CONFLICT"    : False,
-#                         "Unknown"     : False
-#                         }
-#         for f in files:
-#             # print("\t getDirStatus ", path , "->", f)
-#             if f in self.rgd.branchFiles[branch]:
-#                 if len(self.rgd.branchFiles[branch][f]["files"])>0:
-#                     dirStatus = self.__getDirStatus( branch, self.rgd.branchFiles[branch][f]["files"], f)
-#                     for k in dirStatus:
-#                         if dirStatus[k]:
-#                             mergedStatus[k] = True
-                        
-#                 else:
-#                     fileStatus = self.rgd.getFileStatus(branch, f)
-#                     mergedStatus[fileStatus] = True
-# #                     if f in self.rgd.branchFiles[branch]:
-# #                         fileStatus = self.getFileStatus( self.rgd.branchFiles[branch][f]["id"], f)
-# #                         mergedStatus[fileStatus] = True
-# #                     else:
-# #                         print("\t ..getDirStatus ", path , "->", f)
-                        
-# #                         fileStatus = "Unknown"
-#         # print("\t getDirStatus", path, ":", mergedStatus)
-#         return mergedStatus
-
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
@@ -920,23 +413,6 @@ class RGitVersions(QMainWindow):
                 commitId, commitTime, blobId = self.rgd.repoFiles[filePath]["commits"][-1]
                 self.rgd.doDiff(branch, filePath, None, filePath, blobId)
 
-#             fileName  = sel[0].text(0)
-#             filePath  = sel[0].data(0, Qt.UserRole)[0]
-#             filePath1 = self.rgd.repo.workdir + "/" +sel[0].data(0, Qt.UserRole)[0]
-
-#             if filePath in self.rgd.repoFiles:
-#                 commitId, commitTime, blobId = self.rgd.repoFiles[filePath]["commits"][-1]
-#                 entry     = self.rgd.repo.get(blobId)
-#                 bf, ext   = os.path.splitext(fileName)
-#                 filePath2 = "/tmp/" + bf+"."+ commitId + ext
-#                 if not entry.is_binary:
-#                     with open(filePath2, "wb") as out:
-#                         out.write(entry.data)
-#                     cmd = re.sub("%2", filePath2, re.sub("%1", filePath1, self.rgd.diffCommand))
-#                     p = subprocess.Popen(cmd, shell = True)
-#                     p.wait()
-#                     print("compare done")
-#                     os.unlink(filePath2)
 
                 
     def showBlame(self):
