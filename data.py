@@ -166,14 +166,16 @@ class RGitData():
                 self.collectBlobsFromTree(branchName,nextTree, commit,path)
             esid = str(e.id)
             com  = [str(commit.id), commit.commit_time, str(e.id)]
-            if esid in self.blobPath:
+            if esid in self.blobPath[branchName]:
                 if commit.commit_time < self.blobPath[branchName][esid]["firstCommit"][1]:
                     self.blobPath[branchName][esid]["firstCommit"] = com
                     self.updated[branchName]= True
+                if path not in self.blobPath[branchName][esid]["path"]:
+                    self.blobPath[branchName][esid]["path"].append(path)
+                    self.updated[branchName]= True
             else:
-                self.blobPath[branchName][esid] = {"path":path, "firstCommit":com}
+                self.blobPath[branchName][esid] = {"path":[path], "firstCommit":com}
                 self.updated[branchName]= True
-
 
     def addBranchToCommits(self, branchName, tree, commit, parentPath):
         repo   = self.repo
@@ -208,17 +210,15 @@ class RGitData():
                 self.updated[branchName]= True
 
         for eid in self.blobPath[branchName]:
-            path        = self.blobPath[branchName][eid]["path"]
+            pathList    = self.blobPath[branchName][eid]["path"]
             firstCommit = self.blobPath[branchName][eid]["firstCommit"]
-            if path not in  self.repoFiles:
-                self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
-                self.updated["rf"] = True
-            if len(firstCommit) != 3:
-                print(">>lastC>>>", firstCommit)
-            if firstCommit[1] >0:
-                self.repoFiles[path]["commits"].append(firstCommit )
-                self.updated["rf"] = True
-
+            for path in pathList:
+                if path not in  self.repoFiles:
+                    self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
+                    self.updated["rf"] = True
+                if firstCommit[1] >0:
+                    self.repoFiles[path]["commits"].append(firstCommit )
+                    self.updated["rf"] = True
             
 
     def postProcess(self):
@@ -324,8 +324,10 @@ class RGitData():
                 conf =json.load(inp)
                 self.blobPath[branch] = conf["blobs"]
                 self.allCommitIds[branch] = set(conf["commits"])
-            for e in self.blobPath[branch].values():
-                self.branchPath[e["path"]].add(branch)
+            # FIXME addinf branchesa correclty
+#             for e in self.blobPath[branch].values():
+#                 for path in e["path"]:
+#                     self.branchPath["path].add(branch)
                 
 
     def saveCaches(self, branches, repoFiles=False):
