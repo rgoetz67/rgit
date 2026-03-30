@@ -662,8 +662,8 @@ class RGitData():
         if sys.platform == "win32":
             pass
         else:
-            privKeyFile = os.environ("HOME")+"/.ssh/id_rsa"
-            publKeyFile = os.environ("HOME")+"/.ssh/id_rsa.pub"
+            privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
+            publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
         for remote in self.repo.remotes:
             if remote.name == remote_name:
                 remote.push(['refs/heads/'+branch],
