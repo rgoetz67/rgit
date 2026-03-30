@@ -265,16 +265,16 @@ class RGitData():
                     if tag > rVersion:
                         rVersion = tag
         commit = self.repo.get(cid)
-        p = commit.message.find("git=svn=id")
+        p = commit.message.find("git-svn-id")
         verStr = (dVersion + " " + rVersion).strip()
         if p>0:
             p2 = commit.message[p:].find("@") +p
             p3 = commit.message[p2:].find(" ") +p2
             if p2 >=0 and p3 >p2:
                 if len(verStr) >0:
-                    return "rev"+commit.message[p2:p3] + " / " +verStr
+                    return "rev"+commit.message[p2+1:p3] + " / " +verStr
                 else:
-                    return "rev"+commit.message[p2:p3]             
+                    return "rev"+commit.message[p2+1:p3]             
         return (dVersion + " " + rVersion).strip()
 
     
