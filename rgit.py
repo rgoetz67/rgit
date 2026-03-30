@@ -697,7 +697,7 @@ class RGitVersions(QMainWindow):
             else:
                 fname = os.path.basename(f)
                 status = self.rgd.getFileStatus(eid, f)
-            commitId = self.rgd.blobPath[branch][eid]["firstCommit"][0]
+            commitId = self.rgd.getCommitOfBlob(branch, f, eid)
             commit   = self.rgd.repo.get(commitId)
 
             
@@ -889,24 +889,7 @@ class RGitVersions(QMainWindow):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
             filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
-            self.rgd.doDiff(branch, filePath,entryId) 
-#             fileName  = sel[0].text(0)
-#             filePath1 = self.rgd.repo.workdir + "/" +sel[0].data(0, Qt.UserRole)[0]
-
-#             entryId   = sel[0].data(0, Qt.UserRole)[2]
-#             entry     = self.rgd.repo.get(entryId)
-#             branch    = sel[0].data(0, Qt.UserRole)[1]
-#             commitId  = self.rgd.blobPath[branch][entryId]["firstCommit"][0]
-#             bf, ext   = os.path.splitext(fileName)
-#             filePath2 = "/tmp/" + bf+"."+ commitId + ext
-#             if not entry.is_binary:
-#                 with open(filePath2, "wb") as out:
-#                     out.write(entry.data)
-#                 cmd = re.sub("%2", filePath2, re.sub("%1", filePath1, self.rgd.diffCommand))
-#                 p = subprocess.Popen(cmd, shell = True)
-#                 p.wait()
-#                 print("compare done")
-#                 os.unlink(filePath2)
+            self.rgd.doDiff(branch, filePath, None, filePath, entryId) 
 
     def diffWithHead(self):
         sel = self.fileTree.selectedItems()
@@ -914,7 +897,7 @@ class RGitVersions(QMainWindow):
             filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
             if filePath in self.rgd.repoFiles:
                 commitId, commitTime, blobId = self.rgd.repoFiles[filePath]["commits"][-1]
-                self.rgd.doDiff(branch, filePath, blobId)
+                self.rgd.doDiff(branch, filePath, None, filePath, blobId)
 
 #             fileName  = sel[0].text(0)
 #             filePath  = sel[0].data(0, Qt.UserRole)[0]
@@ -943,7 +926,7 @@ class RGitVersions(QMainWindow):
             filePath = sel[0].data(0, Qt.UserRole)[0]
             branch   = sel[0].data(0, Qt.UserRole)[1]
             entryId  = sel[0].data(0, Qt.UserRole)[2]
-            commitId = self.rgd.getCommitOfBlob(branch, entryId)
+            commitId = self.rgd.getCommitOfBlob(branch, filePath, entryId)
             print ("BLAME : ", branch, entryId, commitId)
             print ("BLAME : ", filePath)
             self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)

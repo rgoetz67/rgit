@@ -167,11 +167,11 @@ class CommitDialog(QFrame):
                 print("diff prev:", f)
                 e   = self.rgd.branchFiles[self.branch][f]
                 eid = e["id"]
-                commitId = self.rgd.blobPath[self.branch][eid]["firstCommit"][0]
+                commitId = self.rgd.getCommitOfBlob(branch, f, eid)
                 commit   = self.rgd.repo.get(commitId)
                 prevBlobId = self.rgd.previousCommit(self.branch, f,
                                                      str(commit.id), commit.commit_time)
-                self.rgd.doDiff(self.branch, eid, prevBlobId)
+                self.rgd.doDiff(self.branch, f, eid, f, prevBlobId)
             
         return
         for eid in self.rb1:

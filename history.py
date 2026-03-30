@@ -275,13 +275,17 @@ class HistoryView(QFrame):
             commitTimeStr   = sel[0].text(7)
             commitTimeInt   = int(datetime.datetime.fromisoformat(commitTimeStr).timestamp())
             for i, (commitId, commitTime, blobId) in enumerate(self.commits[:-1]):
-                if blobId[:7] == shortBlobHash and commitId[:7] == shortCommitHash and  commitTimeInt == commitTime:
-                    self.rgd.doDiff(self.branch, blobId, self.commits[i+1][2])
+                if     blobId[:7]    == shortBlobHash   and \
+                       commitId[:7]  == shortCommitHash and \
+                       commitTimeInt == commitTime:
+                    # FIXME copies?
+                    self.rgd.doDiff(self.branch, self.filePath, blobId, self.filePath, self.commits[i+1][2])
 
     def doDiffPrev2(self):
         for eid in self.diffBtn:
             if self.diffBtn[eid] == self.sender():
-                self.rgd.doDiff(self.branch, eid, self.prevCommit[eid] )
+                # FIXME copies?
+                self.rgd.doDiff(self.branch, self.filePath, eid, self.filePath, self.prevCommit[eid] )
                 
 
     def doDiffSelected(self):
@@ -294,7 +298,8 @@ class HistoryView(QFrame):
                 blobId2 = eid
                 break
         if blobId1 != blobId2:
-            self.rgd.doDiff(self.branch, blobId1, blobId2)
+            # FIXME copies?
+            self.rgd.doDiff(self.branch, self.filePath, blobId1, self.filePath, blobId2)
 
 
     def quit(self):
