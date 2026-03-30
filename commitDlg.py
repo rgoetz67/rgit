@@ -120,46 +120,14 @@ class CommitDialog(QFrame):
             self.fileItems[f] = item
         self.filesList.setColumnWidth(1,100)
         self.filesList.setColumnWidth(2,100)
-#         w = 0
-#         for c in range(1,3,1):
-#             self.filesList.resizeColumnToContents(c)
-#             w += self.filesList.columnWidth(c)
         self.filesList.setColumnWidth(0, self.width()-224)
 
 
 
     def doCommit(self):
         files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
-#         message   = self.message.toPlainText()
         self.rgd.commitFiles(files, self.message.toPlainText(), self.pushToRem.isChecked())
-#         print("files :", files)
-#         ref     = self.repo.head.name  
-#         parents = [self.repo.head.target]  
-
-#         # FIXME  how to select updates only to those files in 'files'
-#         index     = self.rgd.repo.index
-#         for f in files:
-#             index.add(f)
-#         index.write()
-#         author    = pygit2.Signature(self.rgd.globalConfig["user.name"],
-#                                      self.rgd.globalConfig["user.email"])
-#         committer = pygit2.Signature(self.rgd.globalConfig["user.name"],
-#                                      self.rgd.globalConfig["user.email"])
-#         tree      = index.write_tree()
-#         self.rgd.repo.create_commit(ref, author, committer, message, tree, parents)
-#         if self.pushToRem.isChecked():
-#             self.push()
-
-#     def push(self, remote_name='origin', branch="main"):
-#         if sys.platform == "win32":
-#             pass
-#         else:
-#             privKeyFile = os.enviton("HOME")+"/.ssh/id_rsa"
-#             publKeyFile = os.enviton("HOME")+"/.ssh/id_rsa.pub"
-#         for remote in self.rgd.repo.remotes:
-#             if remote.name == remote_name:
-#                 remote.push(['refs/heads/'+branch],
-#                             callbacks=GitCallbacks(priv_key=privKeyFile, pub_key=publKeyFile))
+        self.close()
 
 
     def doRevert(self):
