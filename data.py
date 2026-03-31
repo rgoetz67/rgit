@@ -92,9 +92,22 @@ preferedPrimaryBranchNames = ["trunk", "main", "HEAD", "head", "master"]
 preferedRemotePrefixes     = ["origin", "master"]
 class RGitData():
 
-    def __init__(self, curBranch, primaryBranches):
+    def __init__(self, curBranch):
         self.curBranch       = curBranch
-        self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        
+        # FXIME better detection of available ssh keys
+        if sys.platform == "win32":
+            if "HOME" in os.environ:
+                sshPath = os.environ["HOME"]+"\\.ssh"
+            elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+                sshPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.ssh"
+            if os.path.exists(sshPath):
+                self.privKeyFile = sshPath+"\\id_rsa"
+                self.publKeyFile = sshPath+"\\id_rsa.pub"
+        else:
+            self.privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
+            self.publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
         
         self.repo            = pygit2.Repository(".")
         self.remotes         = list(self.repo.remotes)
@@ -118,21 +131,31 @@ class RGitData():
         if len(self.branches["local"]) == 1:
             localPrim = self.branches["local"][0]
         else:
-            for name in preferedPrimaryBranchNames:
+            for name in [curBranch] + preferedPrimaryBranchNames:
                 if name in self.branches["local"]:
                     localPrim = name
                     break
+        self.curBranch = localPrim
+
         remotePrim = ""
+        print("::::", self.branches["remote"])
         if len(self.branches["remote"]) == 1:
             remotePrim = self.branches["remote"][0]
+            self.curRemote = remotePrim.wplit("/")[0]
+            self.curRemoteBranch = remotePrim
         else:
             for prefix in preferedRemotePrefixes:
-                for name in preferedPrimaryBranchNames:
+                for name in ["HEAD", curBranch] + preferedPrimaryBranchNames:
                     if prefix + "/" + name in self.branches["remote"]:
                         remotePrim = prefix + "/" + name
+                        self.curRemote = prefix
+                        self.curRemoteBranch = remotePrim
                         break
+
+
         self.primaryBranches = [localPrim, remotePrim]
         print(">>>>>", self.primaryBranches)
+        print(">>>>>", self.curRemote, self.curRemoteBranch,  self.curBranch)
 
 
         t0 = time.time()
@@ -518,7 +541,7 @@ class RGitData():
 
 
 
-    def getDirStatus(self, branch, path, verbose=True):
+    def getDirStatus(self, branch, path, verbose=False):
         statusDict = self.__getDirStatus(branch,  path)
         nStat      =  np.sum(np.array(list(statusDict.values())))
         if nStat == 0:
@@ -684,12 +707,9 @@ class RGitData():
             else:
                 index.add(f)
         index.write()
-        author    = pygit2.Signature(self.globalConfig["user.name"],
-                                     self.globalConfig["user.email"])
-        committer = pygit2.Signature(self.globalConfig["user.name"],
-                                     self.globalConfig["user.email"])
+        user = self.repo.default_signature
         tree      = index.write_tree()
-        self.repo.create_commit(ref, author, committer, message, tree, parents)
+        self.repo.create_commit(ref, user, user, message, tree, parents)
         if pushToRemote:
             self.push()
         return True
@@ -697,12 +717,54 @@ class RGitData():
 
 
     def push(self, remote_name='origin', branch="main"):
-        if sys.platform == "win32":
-            pass
-        else:
-            privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
-            publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
         for remote in self.repo.remotes:
             if remote.name == remote_name:
                 remote.push(['refs/heads/'+branch],
-                            callbacks=GitCallbacks(priv_key=privKeyFile, pub_key=publKeyFile))
+                            callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+
+
+
+    def pull(self, remote_name=None, branch=None):
+        branch = branch or self.curBranch
+        remote_name = remote_name or self.curRemote
+        
+        for remote in self.repo.remotes:
+            if remote.name == remote_name:
+                remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+                remote_master_id = self.repo.lookup_reference('refs/remotes/origin/%s' % (branch)).target
+                merge_result, _ = self.repo.merge_analysis(remote_master_id)
+                print("PULL: merge_result=",merge_result, merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE, merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD, merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)
+                # Up to date, do nothing
+                if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
+                    return
+                
+                # We can just fastforward
+                elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
+                    self.repo.checkout_tree(repo.get(remote_master_id))
+                    try:
+                        master_ref = self.repo.lookup_reference('refs/heads/%s' % (branch))
+                        master_ref.set_target(remote_master_id)
+                    except KeyError:
+                        print("WARRNING: Local BTRANCH not exists")
+                        self.repo.create_branch(branch, repo.get(remote_master_id))
+                    self.repo.head.set_target(remote_master_id)
+                elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
+                    self.repo.merge(remote_master_id)
+                    
+                    if self.repo.index.conflicts is not None:
+                        for conflict in repo.index.conflicts:
+                            print('Conflicts found in:', conflict[0].path)
+                        raise AssertionError('Conflicts, ahhhhh!!')
+
+                    user = self.repo.default_signature
+                    tree = self.repo.index.write_tree()
+                    commit = self.repo.create_commit('HEAD',
+                                                user,
+                                                user,
+                                                'Merge!',
+                                                tree,
+                                                [repo.head.target, remote_master_id])
+                    # We need to do this or git CLI will think we are still merging.
+                    self.repo.state_cleanup()
+                else:
+                    raise AssertionError('Unknown merge analysis result')
