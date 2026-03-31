@@ -131,7 +131,7 @@ class RGitVersions(QMainWindow):
                                            self.doLocalCommit, "Commit to local repo"),
             "commit" :  self.addToolButton("Commit & Push", progPath+"/icons/commit.png",
                                            self.doCommit, "Commit to remote repo"),
-            "push" :    self.addToolButton("Push \nLocal Commits \nto master", progPath+"/icons/push.png",
+            "push" :    self.addToolButton("Push Local\nto master", progPath+"/icons/push.png",
                                            self.doPush, "Commit to remote repo"),
             "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
                                            None, " Repo Info"),
@@ -376,7 +376,7 @@ class RGitVersions(QMainWindow):
         self.__doPush(push=False)
     
     def doPush(self):
-        pass
+        self.rgd.push()
     
     def doCommit(self):
         print("doPush")
