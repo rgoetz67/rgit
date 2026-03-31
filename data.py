@@ -526,10 +526,18 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
+
+        updateAvailable = False
+        if path in self.branchFiles[self.curRemoteBranch]:
+            
+            if     self.branchFiles[self.curRemoteBranch][path]["id"] != \
+                   self.branchFiles[self.curBranch][path]["id"]:
+                updateAvailable = True
+            
         if path in self.repoFiles:
             if "lastCommit" not in self.repoFiles[path] :
                 status = "Not Commited"
-            elif self.repoFiles[path]["lastCommit"][2] != eid:
+            elif updateAvailable:
                 if status == "CURRENT":
                     status="Remote Update"
                 elif status ==  "WT_MODIFIED":
