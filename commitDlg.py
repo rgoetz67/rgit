@@ -30,10 +30,11 @@ from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
 
 
-
+from data import GitCallbacks
 
 class CommitDialog(QFrame):
-
+    commitExecuted = Signal()
+    
     def __init__(self, pwin, rgd, branch, files, push=True):
         super().__init__()
         self.pwin = pwin
@@ -52,29 +53,43 @@ class CommitDialog(QFrame):
         self.gbox = QGridLayout()
         self.setLayout(self.gbox)
 
+        self.lFiles    = QLabel("Files to be commited:")
         self.filesList = QTreeWidget()
         self.filesList.setMinimumSize(480,320)
         self.filesList.setColumnCount(3)
         self.filesList.setHeaderLabels(["FileName", "", ""])
 
-        self.message = QPlainTextEdit()
+        self.lMessage  = QLabel("Commit Message:")
+        self.message   = QPlainTextEdit()
+        font = QFont("Liberation Mono")
+        self.message.setFont(font)
+        self.lMessage.setStyleSheet("QLabel {margin-top:4px}")
+        self.comMsg    = QLabel("")
+        self.comMsg.setStyleSheet("QLabel {font-weight:bold; font-size:16px}")
+      # self.comMsg.hide()
+        self.buttons   = self.buttonFrame()
 
-        self.buttons   =self.buttonFrame()
-
-        self.gbox.addWidget(self.message,   2,1,1, 2)
-        self.gbox.addWidget(self.filesList, 1,1,1, 2)
-        self.gbox.addWidget(self.buttons,   3,1,2, 2)
+        self.gbox.addWidget(self.lFiles,    1,1,1, 2)
+        self.gbox.addWidget(self.filesList, 2,1,1, 2)
+        self.gbox.addWidget(self.comMsg ,   3,1,1, 2, Qt.AlignHCenter)
+        self.gbox.addWidget(self.lMessage,  4,1,1, 2)
+        self.gbox.addWidget(self.message,   5,1,1, 2)
+        self.gbox.addWidget(self.buttons,   6,1,1, 2)
 
         self.gbox.setColumnStretch(1,1)
         self.gbox.setColumnStretch(2,1)
-        self.gbox.setRowStretch(1,1)
+        self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,1)
-        self.gbox.setRowStretch(3,0)
+        self.gbox.setRowStretch(2,0)
+        self.gbox.setRowStretch(4,0)
+        self.gbox.setRowStretch(5,1)
+        self.gbox.setRowStretch(6,0)
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
         self.setMinimumWidth(640)
         self.filesList.setMinimumHeight(320)
         self.message.setMinimumHeight(240)
+        self.message.setTabStopDistance( 56)  # 7 pixel per char seem to be corerct
 
 
     def buttonFrame(self):
@@ -120,41 +135,28 @@ class CommitDialog(QFrame):
             self.fileItems[f] = item
         self.filesList.setColumnWidth(1,100)
         self.filesList.setColumnWidth(2,100)
-#         w = 0
-#         for c in range(1,3,1):
-#             self.filesList.resizeColumnToContents(c)
-#             w += self.filesList.columnWidth(c)
         self.filesList.setColumnWidth(0, self.width()-224)
 
 
 
     def doCommit(self):
         files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
-        print("files :", files)
-
-        return
-        ref     = self.repo.head.name  
-        parents = [self.repo.head.target]  
-
-        # FIXME  how to select updates only to those files in 'files'
-        index     = self.rgd.repo.index
-        index.add_all()
-        index.write()
-        author    = Signature('Alice Author', 'alice@authors.tld')
-        committer = Signature('Cecil Committer', 'cecil@committers.tld')
-        message   = self.message.toPlainText()
-        tree      = index.write_tree()
-        self.rgd.repo.create_commit(ref, author, committer, message, tree, parents)
         if self.pushToRem.isChecked():
-            for remote in self.rgd.repo.remotes:
-                if remote.name == remote_name:
-                    remote.push(ref)
+            self.comMsg.setText("Commit & Push in progress")
+        else:
+            self.comMsg.setText("Commit in progress")
+        QApplication.processEvents()
+#        self.comMsg.repaint()
+        
+        self.lFiles.setEnabled(False)  
+        self.filesList.setEnabled(False)  
+        self.lMessage.setEnabled(False)  
+        self.message.setEnabled(False)   
+        self.buttons.setEnabled(False)   
 
-
-    def push( remote_name='origin', ref='refs/heads/master:refs/heads/master'):
-        for remote in repo.remotes:
-            if remote.name == remote_name:
-                remote.push(ref)
+        self.rgd.commitFiles(files, self.message.toPlainText(), self.pushToRem.isChecked())
+        self.commitExecuted.emit()
+        self.close()
 
 
     def doRevert(self):
@@ -167,11 +169,11 @@ class CommitDialog(QFrame):
                 print("diff prev:", f)
                 e   = self.rgd.branchFiles[self.branch][f]
                 eid = e["id"]
-                commitId = self.rgd.blobPath[self.branch][eid]["firstCommit"][0]
+                commitId = self.rgd.getCommitOfBlob(self.branch, f, eid)
                 commit   = self.rgd.repo.get(commitId)
                 prevBlobId = self.rgd.previousCommit(self.branch, f,
                                                      str(commit.id), commit.commit_time)
-                self.rgd.doDiff(self.branch, eid, prevBlobId)
+                self.rgd.doDiff(self.branch, f, None, f, eid)
             
         return
         for eid in self.rb1:

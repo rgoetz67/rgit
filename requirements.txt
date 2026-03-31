@@ -1,0 +1,4 @@
+psutil
+PySide6
+numpy
+pygit2

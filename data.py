@@ -39,18 +39,53 @@ import subprocess
 from collections import defaultdict
 import pygit2
 import numpy as np
+from PySide6.QtWidgets import *
+from PySide6.QtGui     import *
+from PySide6.QtCore    import *
 
-    # self.blobPath[branch][blob.id] = {"Path":path, "lastCommit": (lastCommit.id, lastCommitTime, blob.id)}   ->cached
-    # self.allCommitIds [branch]     = set( commitId)     -> cached
+
+class GitCallbacks(pygit2.RemoteCallbacks):
+    def __init__(self, user=None, token=None, pub_key=None, priv_key=None, passphrase=None):
+        self.user = user
+        self.token = token
+        self.pub_key = pub_key
+        self.priv_key = priv_key
+        self.passphrase = passphrase
+
+    def credentials(self, url, username_from_url, allowed_types):
+        if allowed_types & pygit2.enums.CredentialType.USERNAME:
+            return pygit2.Username(self.user)
+        elif allowed_types & pygit2.enums.CredentialType.USERPASS_PLAINTEXT:
+            return pygit2.UserPass(self.user, self.token)
+        elif allowed_types & pygit2.enums.CredentialType.SSH_KEY:
+            return pygit2.Keypair(username_from_url, self.pub_key, self.priv_key, self.passphrase)
+        else:
+            return None
+
+    def push_update_reference(self, refname, message):
+        if message is not None:
+            raise GitError("Push of {} failed - error message is: {}".format(refname, message))
+
+    def certificate_check(self, certificate, valid, host):
+        return True
+
+
+    def transfer_progress(self, stats):
+        print("Retrieved objects: {}/{}".format(stats.indexed_objects, stats.total_objects), end="\r")
+
+
+    # self.commitsByPath[branch][path] = [ [commitId, commitTime, blobId], ...]
+    # self.newFilesInCommit[commitId] = [ path, ...]
+    # self.allCommitIds [branch][path] = set( commitId)     -> cached
     # ### self.branchPath[branch] = [path]
     # self.branchPath[path] = [branches]
     # self.repoFiles[path] = { "name":name, 
     #                          "isDir":  bool
     #                          "lastCommit" : (commit.id, commitTime) 
-    #                          "commits" : [(commit.id, commitTime, blob.id/tree.id) ....]
+    #                          "commits" : [(commit.id, commitTime, blob.id/tree.id, path) ....]
     #                          "files" : [ path, ....]}   -> cached and updated on start
     # global cache: repoFiles
-    # branchCache : blobPath allCommitIds  
+    # branchCache : firstCommitOfBlob allCommitIds  
     
 
 
@@ -58,18 +93,36 @@ preferedPrimaryBranchNames = ["trunk", "main", "HEAD", "head", "master"]
 preferedRemotePrefixes     = ["origin", "master"]
 class RGitData():
 
-    def __init__(self, curBranch, primaryBranches):
+    def __init__(self, curBranch):
         self.curBranch       = curBranch
+        #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        
+        # FXIME better detection of available ssh keys
+        if sys.platform == "win32":
+            if "HOME" in os.environ:
+                sshPath = os.environ["HOME"]+"\\.ssh"
+            elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+                sshPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.ssh"
+            if os.path.exists(sshPath):
+                self.privKeyFile = sshPath+"\\id_rsa"
+                self.publKeyFile = sshPath+"\\id_rsa.pub"
+        else:
+            self.privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
+            self.publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
+        
         self.repo            = pygit2.Repository(".")
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
                                 "remote" : list(self.repo.branches.remote)}
         self.branches["all"] = self.branches["local"] + self.branches["remote"]
         self.repoFiles    = {}
-        self.blobPath     = defaultdict(dict)
         self.branchFiles  = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
         self.branchPath   = defaultdict(set)
+        self.commitsByPath = {}
+        self.newFilesInCommit = defaultdict(set)
+        self.commitsByBlob = {}
+        self.copies       = {}
         self.tags         = {}
         self.updated      = {"rf" : False,"tags": False}
 
@@ -81,21 +134,31 @@ class RGitData():
         if len(self.branches["local"]) == 1:
             localPrim = self.branches["local"][0]
         else:
-            for name in preferedPrimaryBranchNames:
+            for name in [curBranch] + preferedPrimaryBranchNames:
                 if name in self.branches["local"]:
                     localPrim = name
                     break
+        self.curBranch = localPrim
+
         remotePrim = ""
+        print("::::", self.branches["remote"])
         if len(self.branches["remote"]) == 1:
             remotePrim = self.branches["remote"][0]
+            self.curRemote = remotePrim.wplit("/")[0]
+            self.curRemoteBranch = remotePrim
         else:
             for prefix in preferedRemotePrefixes:
-                for name in preferedPrimaryBranchNames:
+                for name in ["HEAD", curBranch] + preferedPrimaryBranchNames:
                     if prefix + "/" + name in self.branches["remote"]:
                         remotePrim = prefix + "/" + name
+                        self.curRemote = prefix
+                        self.curRemoteBranch = remotePrim
                         break
+
+
         self.primaryBranches = [localPrim, remotePrim]
         print(">>>>>", self.primaryBranches)
+        print(">>>>>", self.curRemote, self.curRemoteBranch,  self.curBranch)
 
 
         t0 = time.time()
@@ -137,17 +200,52 @@ class RGitData():
         return  { "name":name,
                   "isDir":isDir,
                   "commits": commits ,
-                  "files" :files or []
+ #                 "files" :files or [],
+                  "copiedFrom":""
                   }
-       
+
+
+    def detectCopiesInCommit(self,commit):
+        cts = datetime.datetime.fromtimestamp(commit.commit_time).strftime("%Y-%m-%d %H:%M:%S")
+        svn = commit.message_trailers.get("git-svn-id", "").split(" ")[0].split("/")[-1]
+        print(" DETECT COPIES %s @ %s [%s]:" %(str(commit.id), cts, svn))
+        t0 =time.time()
+        for parentCommitId in commit.parent_ids:
+            t1 =time.time()
+            differ = self.repo.diff(parentCommitId, commit.id)
+            n1 = len([d for d in differ])
+            differ.find_similar()
+            t2 =time.time()
+            n2 = len([d for d in differ])
+            diffList = [ d for d in list(differ.deltas)]
+            for diff in diffList:
+                if isinstance(diff, pygit2.DiffDelta):
+                    if diff.new_file.path != diff.old_file.path:
+                        print("     Commit %s @ %s :  MOVED " %(str(commit.id), cts), diff.old_file.path)
+                        print("%*s   TO "%(78, ""), diff.new_file.path)
+                        # copies[origPath] = curPath
+                        # since we work from new to old, if the newPath is already stored as copies source then use this information:
+                        if diff.new_file.path in self.copies:
+                            self.copies[diff.old_file.path] = self.copies[diff.new_file.path]
+                        else:
+                            self.copies[diff.old_file.path] = diff.new_file.path
+
+#            print("\t\t\t\t\t\t\t\t\t\tdone for %s after %7.2fs / %7.2fs" %(parentCommitId, t2-t1, time.time()-t2), n1, n2)
+#        print("\t\t\t\t\t\t\t\t\t\t\t\t done after %7.2fs" %(time.time()-t0))
+        return self.copies
+
     def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
         repo   = self.repo
+
+                    
+
         for e in tree:
             path = parentPath+"/"+ e.name
             if e.filemode == pygit2.GIT_FILEMODE_TREE:
                 isDir = True
             else:
                 isDir = False
+
 
             if path not in  self.repoFiles:
                 print("\t * add path to repoFiles:", path)
@@ -156,23 +254,31 @@ class RGitData():
             else:
                 self.branchPath[path].add(branchName)
 
-            if path not in self.repoFiles[parentPath]["files"]:
-                self.repoFiles[parentPath]["files"].append(path)
-                self.updated["rf"] = True
+#             if path not in self.repoFiles[parentPath]["files"]:
+#                 self.repoFiles[parentPath]["files"].append(path)
+#                 self.updated["rf"] = True
 
-                
             if isDir:
                 nextTree = repo.get(e.id)
                 self.collectBlobsFromTree(branchName,nextTree, commit,path)
             esid = str(e.id)
-            com  = [str(commit.id), commit.commit_time, str(e.id)]
-            if esid in self.blobPath:
-                if commit.commit_time < self.blobPath[branchName][esid]["firstCommit"][1]:
-                    self.blobPath[branchName][esid]["firstCommit"] = com
-                    self.updated[branchName]= True
-            else:
-                self.blobPath[branchName][esid] = {"path":path, "firstCommit":com}
-                self.updated[branchName]= True
+            com  = [str(commit.id), commit.commit_time, str(e.id), path]
+
+            
+            self.commitsByPath[branchName][path]. append(com)
+#             if esid not in  self.firstCommitOfBlob[branchName]:
+#                 self.firstCommitOfBlob[branchName][esid] = {}
+#                 self.updated[branchName]= True
+#             if path not in  self.firstCommitOfBlob[branchName][esid]:
+#                 self.firstCommitOfBlob[branchName][esid][path] = com
+#                 self.updated[branchName]= True
+#             else:
+#                 if commit.commit_time < self.firstCommitOfBlob[branchName][esid][path][1]:
+#                     self.firstCommitOfBlob[branchName][esid][path] = com
+#                     self.updated[branchName]= True
+
+
+
 
 
     def addBranchToCommits(self, branchName, tree, commit, parentPath):
@@ -188,10 +294,11 @@ class RGitData():
         if branchName not in self.allCommitIds:
             self.allCommitIds[branchName] = set()
             self.updated[branchName]= True
-        if branchName not in self.blobPath:
-            self.blobPath[branchName] = {}
-            self.updated[branchName]= True
-        
+#         if branchName not in self.firstCommitOfBlob:
+#             self.firstCommitOfBlob[branchName] = {}
+#             self.updated[branchName]= True
+        self.commitsByPath[branchName]    = defaultdict(list)
+            
         repo   = self.repo
         walker = repo.walk(repo.head.target, pygit2.GIT_SORT_TIME )
         commitList = list([c  for c in walker])
@@ -200,25 +307,36 @@ class RGitData():
             self.updated["rf"] = True
         prevTime = commitList[0].commit_time +10
         for commit in commitList:
+            # copies = self.detectCopiesInCommit(commit)
             if commit.id in self.allCommitIds[branchName]:
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
             if str(commit.id) not in self.allCommitIds[branchName]:
                 self.allCommitIds[branchName].add(str(commit.id))
                 self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
                 self.updated[branchName]= True
+                
 
-        for eid in self.blobPath[branchName]:
-            path        = self.blobPath[branchName][eid]["path"]
-            firstCommit = self.blobPath[branchName][eid]["firstCommit"]
+        for path in self.commitsByPath[branchName]:
             if path not in  self.repoFiles:
-                self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
+                self.repoFiles[path] = self.__newRepoFile(os.path.basename(path),isDir=path[-1]=="/")
                 self.updated["rf"] = True
-            if len(firstCommit) != 3:
-                print(">>lastC>>>", firstCommit)
-            if firstCommit[1] >0:
-                self.repoFiles[path]["commits"].append(firstCommit )
-                self.updated["rf"] = True
-
+            commits = list(sorted(self.commitsByPath[branchName][path],  key = lambda x : -x[1]))
+            activeCommits = []
+            for i in range(len(commits[:-1])):
+                if commits[i][2] != commits[i+1][2]:
+                    activeCommits.append(commits[i])
+            activeCommits.append(commits[-1])
+            self.repoFiles[path]["commits"] = list(reversed(activeCommits))
+        self.postProcess2(branchName)
+#         for eid in self.firstCommitOfBlob[branchName]:
+#             for path in self.firstCommitOfBlob[branchName][eid]:
+#                 firstCommit = self.firstCommitOfBlob[branchName][eid][path]
+#                 if path not in  self.repoFiles:
+#                     self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
+#                     self.updated["rf"] = True
+#                 if firstCommit[1] >0:
+#                     self.repoFiles[path]["commits"].append(firstCommit )
+#                     self.updated["rf"] = True
             
 
     def postProcess(self):
@@ -233,6 +351,18 @@ class RGitData():
                 else:
                     if not self.repoFiles[path]["isDir"]:
                         print("No commits for ", path, "\t", self.repoFiles[path]["isDir"])
+
+
+    def postProcess2(self, branch):
+        #FIXME add this to loadCaches
+        self.commitsByBlob[branch] = {}
+        for path in self.repoFiles:
+            if path not in self.commitsByBlob[branch] :
+                self.commitsByBlob[branch][path] = defaultdict(list)
+            for commitId, commitTime, blobId, path in self.repoFiles[path]["commits"]:
+                self.newFilesInCommit[commitId].add((blobId, path))
+                self.commitsByBlob[branch][path][blobId].append((commitId, commitTime))
+
 
 
     def collectTags(self):
@@ -265,16 +395,16 @@ class RGitData():
                     if tag > rVersion:
                         rVersion = tag
         commit = self.repo.get(cid)
-        p = commit.message.find("git=svn=id")
+        p = commit.message.find("git-svn-id")
         verStr = (dVersion + " " + rVersion).strip()
         if p>0:
             p2 = commit.message[p:].find("@") +p
             p3 = commit.message[p2:].find(" ") +p2
             if p2 >=0 and p3 >p2:
                 if len(verStr) >0:
-                    return "rev"+commit.message[p2:p3] + " / " +verStr
+                    return "rev"+commit.message[p2+1:p3] + " / " +verStr
                 else:
-                    return "rev"+commit.message[p2:p3]             
+                    return "rev"+commit.message[p2+1:p3]             
         return (dVersion + " " + rVersion).strip()
 
     
@@ -290,7 +420,7 @@ class RGitData():
         self.postProcess()
         if saveCache:
             self.saveCaches([branch])
-        print(" branch %s colelcted after %7.2fs" %(branch, time.time()-t0))
+        print(" branch %s collected after %7.2fs" %(branch, time.time()-t0))
 
     
 
@@ -309,7 +439,7 @@ class RGitData():
                 self.tags = json.load(inp)
         for branch in branches:
             self.loadBranchCache(branch)
-
+            self.postProcess2(branch)
             
     def loadBranchCache(self, branch):
         if "/" in branch:
@@ -322,10 +452,8 @@ class RGitData():
             with open(cf) as inp:
                 print("LOAD  %s CACHE"% branch)
                 conf =json.load(inp)
-                self.blobPath[branch] = conf["blobs"]
-                self.allCommitIds[branch] = set(conf["commits"])
-            for e in self.blobPath[branch].values():
-                self.branchPath[e["path"]].add(branch)
+                self.commitsByPath[branch] = conf["commitsByPath"]
+                self.allCommitIds[branch]  = set(conf["commits"])
                 
 
     def saveCaches(self, branches, repoFiles=False):
@@ -353,8 +481,8 @@ class RGitData():
             if self.updated[branch]:
                 with open(cf, "w") as out:
                     print("SAVE %s CACHE" % branch)
-                    cache = {"blobs"     : self.blobPath[branch],
-                             "commits"   : list(self.allCommitIds[branch])
+                    cache = {"commitsByPath" : self.commitsByPath[branch],
+                             "commits"       : list(self.allCommitIds[branch])
                              }
                     json.dump(cache, out , indent=4)
                     self.updated[branch] = False
@@ -424,10 +552,18 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
+
+        updateAvailable = False
+        if path in self.branchFiles[self.curRemoteBranch]:
+            
+            if     self.branchFiles[self.curRemoteBranch][path]["id"] != \
+                   self.branchFiles[self.curBranch][path]["id"]:
+                updateAvailable = True
+            
         if path in self.repoFiles:
             if "lastCommit" not in self.repoFiles[path] :
                 status = "Not Commited"
-            elif self.repoFiles[path]["lastCommit"][2] != eid:
+            elif updateAvailable:
                 if status == "CURRENT":
                     status="Remote Update"
                 elif status ==  "WT_MODIFIED":
@@ -439,7 +575,7 @@ class RGitData():
 
 
 
-    def getDirStatus(self, branch, path):
+    def getDirStatus(self, branch, path, verbose=False):
         statusDict = self.__getDirStatus(branch,  path)
         nStat      =  np.sum(np.array(list(statusDict.values())))
         if nStat == 0:
@@ -447,7 +583,8 @@ class RGitData():
             
         if nStat == 1:   # only a single status
             status = [s  for s,v in statusDict.items() if v][0]
-            print(" ** getDirStatus :", status, path)
+            if verbose:
+                print(" ** getDirStatus :", status, path)
             return status
 
         # Check for only a single status + CURRENT
@@ -455,7 +592,8 @@ class RGitData():
         nStat      =  np.sum(np.array(list(statusDict.values())))
         if nStat == 1:
             status = [s  for s,v in statusDict.items() if v][0]
-            print(" ** getDirStatus :", status, path)
+            if verbose:
+                print(" ** getDirStatus :", status, path)
             return status
 
         # Check status from most important to least
@@ -491,11 +629,13 @@ class RGitData():
 
 
     def newFilesInCommit(self, branch, commitId):
-        newFiles = []
-        for eid,v in self.blobPath[branch].items():
-            if v["firstCommit"][0] == commitId:
-                newFiles.append((eid, v["path"]))
-        return newFiles
+        return self.newFilesInCommit[branch][commitId]
+#         newFiles = []
+#         for eid in self.firstCommitOfBlob[branch]:
+#             for path,v in self.firstCommitOfBlob[branch][eid].items():
+#                 if v[0] == commitId:
+#                     newFiles.append((eid, path))
+#         return newFiles
 
 
     def previousCommit(self, branch, path, commitId, commitTime):
@@ -503,70 +643,95 @@ class RGitData():
         commits = sorted( [ c  for c in self.repoFiles[path]["commits"]    if c[1] < commitTime],
                           key = lambda c: -c[1])
         print("commits:", commits)
-        for commitId, commitTime, entryId in commits:
+        for commitId, commitTime, entryId, _path in commits:
             if commitId in self.allCommitIds[branch]:
                 return entryId
         return None
 
 
 
-    def nameOfEntry(self, branch, entryId):
-        for eid,v in self.blobPath[branch].items():
-            if eid == entryId:
-                return v["path"]
-        return None
+    def getLastCommit(self, path):
+        if path in self.repoFiles:
+            for commitId, _, blobId, p in reversed(self.repoFiles[path]["commits"]):
+                if p==path:
+                    return commitId
+        return ""
 
+    
 
-    def getDifFile(self, branch, fileOrId):
-        if fileOrId in self.repoFiles:
-            return self.repo.workdir + "/"  + fileOrId
-        
-        entry    = self.repo.get(fileOrId)
-        commitId = self.blobPath[branch][fileOrId]["firstCommit"][0]
-        entryFilePath = self.nameOfEntry(branch, fileOrId)
-        if entryFilePath is None:
+    def getDifFile(self, branch, filePath , blobId):
+        if self.repo.workdir[-1] in ["/","\\"]:
+            wd = self.repo.workdir[:-1]
+        else:
+            wd = self.repo.workdir
+        if blobId is None:
+            if os.path.exists(filePath):
+                if filePath[:2] == "./":
+                    return wd + "/"  + filePath[2:]
+                else:
+                    return wd + "/"  + filePath
             return None
-        e
-        bf, ext  = os.path.splitext(os.path.basename(entryFilePath))
-        filePath = "/tmp/" + bf+"."+ commitId + ext
-        with open(filePath, "wb") as out:
+        
+        entry    = self.repo.get(blobId)
+        # FIXME
+        commitId = self.getLastCommit(filePath)
+        bf, ext  = os.path.splitext(os.path.basename(filePath))
+        tmpFilePath = "/tmp/" + bf+"."+ commitId + ext
+        with open(tmpFilePath, "wb") as out:
             out.write(entry.data)
-        return filePath
+        return tmpFilePath
 
-    def doDiff(self, branch, fileOrId1, fileOrId2):
-        filePath1 = self.getDifFile(branch, fileOrId1)
-        filePath2 = self.getDifFile(branch, fileOrId2)
-        cmd = re.sub("%2", filePath2, re.sub("%1", filePath1, self.diffCommand))
-        p = subprocess.Popen(cmd, shell = True)
-        p.wait()
-        print("compare done")
+
+    def doDiff(self, branch, file1, blobId1, file2, blobId2):
+        self.diffFilePath1 = self.getDifFile(branch, file1, blobId1)
+        self.diffFilePath2 = self.getDifFile(branch, file2, blobId2)
+        print("DIFF  ", self.diffFilePath1, blobId1)
+        print("  vs  ", self.diffFilePath2, blobId2)
+        cmd = re.sub("%2", self.diffFilePath2, re.sub("%1", self.diffFilePath1, self.diffCommand))
+        self.diffProc = subprocess.Popen(cmd, shell = True)
+        QTimer.singleShot(500, self.__checkDiffStatus)
+
+    def __checkDiffStatus(self):
+        if self.diffProc.poll() is None:
+            QTimer.singleShot(500, self.__checkDiffStatus)
+            return
+        self.diffProc.wait()
         l = len(self.repo.workdir)
-        if filePath1[:l] != self.repo.workdir:
-            print(" DELETE ", filePath1)
-            os.unlink(filePath1)
-        if filePath2[:l] != self.repo.workdir:
-            print(" DELETE ", filePath2)
-            os.unlink(filePath2)
-
-
-    def getCommitOfBlob(self, branch, blobId):
-        if branch in self.blobPath:
-            if blobId in self.blobPath[branch]:
-                print( self.blobPath[branch][blobId])
-                return self.blobPath[branch][blobId]["firstCommit"][0]
-        return None
+        if self.diffFilePath1[:l] != self.repo.workdir:
+            print(" DELETE ", self.diffFilePath1)
+            os.unlink(self.diffFilePath1)
+        if self.diffFilePath2[:l] != self.repo.workdir:
+            print(" DELETE ", self.diffFilePath2)
+            os.unlink(self.diffFilePath2)
+        self.diffProc = None
+        self.diffFilePath1 = None
+        self.diffFilePath2 = None
+            
+    def getCommitOfBlob(self, branch, path, blobId):
+        commits = self.commitsByBlob[branch][path][blobId]
+        return list(sorted(commits, key= lambda x: x[1]))[-1][0]  # last tuple, fiurst tuple elem
+#         if branch in self.firstCommitOfBlob:
+#             if blobId in self.firstCommitOfBlob[branch]:
+#                 if path in self.firstCommitOfBlob[branch][blobId]:
+#                     print( self.firstCommitOfBlob[branch][blobId])
+#                     return self.firstCommitOfBlob[branch][blobId][path][0]
+#         return None
 
 
     def getBlobIdInCommit(self, branch, commitId, path):
-        for blobId in self.blobPath[branch]:
-            if self.blobPath[branch][blobId]["firstCommit"][0] == commitId:
-                if self.blobPath[branch][blobId]["path"] == path:
-                    return blobId
-        return None
+        for blobId, p in self.newFilesInCommit[commitId]:
+            if path == p:
+                return blobId
+        
+#         for blobId in self.firstCommitOfBlob[branch]:
+#             if path in self.firstCommitOfBlob[branch][blobId]:
+#                 if self.firstCommitOfBlob[branch][blobId][path][0] == commitId:
+#                     return blobId
+#         return None
                                              
     def commitForPath(self, branch, path):
         cl= []
-        for commitId, commitTime, _ in self.repoFiles[path]["commits"]:
+        for commitId, commitTime, _, _ in self.repoFiles[path]["commits"]:
             if commitId in self.allCommitIds[branch]:
                 cl.append((commitId, commitTime))
         return [e[0]  for e in sorted(cl, key=lambda x:-x[1]) ]
@@ -580,3 +745,77 @@ class RGitData():
         print(">>>>>", os.path.basename(os.path.dirname(p)) )
         return os.path.basename(os.path.dirname(p))
                                              
+
+
+    def commitFiles(self, files, message, pushToRemote):
+        ref     = self.repo.head.name  
+        parents = [self.repo.head.target]
+                    
+        index     = self.repo.index
+        for f in files:
+            if f[:2] == "./":
+                index.add(f[2:])
+            else:
+                index.add(f)
+        index.write()
+        user = self.repo.default_signature
+        tree      = index.write_tree()
+        self.repo.create_commit(ref, user, user, message, tree, parents)
+        if pushToRemote:
+            self.push()
+        return True
+
+
+
+    def push(self, remote_name='origin', branch="main"):
+        for remote in self.repo.remotes:
+            if remote.name == remote_name:
+                remote.push(['refs/heads/'+branch],
+                            callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+
+
+
+    def pull(self, remote_name=None, branch=None):
+        branch = branch or self.curBranch
+        remote_name = remote_name or self.curRemote
+        
+        for remote in self.repo.remotes:
+            if remote.name == remote_name:
+                remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+                remote_master_id = self.repo.lookup_reference('refs/remotes/origin/%s' % (branch)).target
+                merge_result, _ = self.repo.merge_analysis(remote_master_id)
+                print("PULL: merge_result=",merge_result, merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE, merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD, merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)
+                # Up to date, do nothing
+                if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
+                    return
+                
+                # We can just fastforward
+                elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
+                    self.repo.checkout_tree(repo.get(remote_master_id))
+                    try:
+                        master_ref = self.repo.lookup_reference('refs/heads/%s' % (branch))
+                        master_ref.set_target(remote_master_id)
+                    except KeyError:
+                        print("WARRNING: Local BTRANCH not exists")
+                        self.repo.create_branch(branch, repo.get(remote_master_id))
+                    self.repo.head.set_target(remote_master_id)
+                elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
+                    self.repo.merge(remote_master_id)
+                    
+                    if self.repo.index.conflicts is not None:
+                        for conflict in repo.index.conflicts:
+                            print('Conflicts found in:', conflict[0].path)
+                        raise AssertionError('Conflicts, ahhhhh!!')
+
+                    user = self.repo.default_signature
+                    tree = self.repo.index.write_tree()
+                    commit = self.repo.create_commit('HEAD',
+                                                user,
+                                                user,
+                                                'Merge!',
+                                                tree,
+                                                [repo.head.target, remote_master_id])
+                    # We need to do this or git CLI will think we are still merging.
+                    self.repo.state_cleanup()
+                else:
+                    raise AssertionError('Unknown merge analysis result')
