@@ -92,8 +92,10 @@ class RGitVersions(QMainWindow):
                            }
         self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "WT_MODIFIED", "Not Comitted", "CURRENT"]
         self.curBranch   = "main"
-        self.primaryBranches = ["main", "origin"]
-        self.rgd         = RGitData(self.curBranch, self.primaryBranches)
+        self.rgd         = RGitData(self.curBranch)
+        self.curBranch   = self.rgd.curBranch
+        self.dirItems    = []
+        self.fileItems   = []
         self.initUI()
         for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
             self.branchSelect.addItem(b)
@@ -136,7 +138,7 @@ class RGitVersions(QMainWindow):
             "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
                                            None, " Repo Info"),
             "Update" :  self.addToolButton("Update",     progPath+"/icons/update.png",
-                                           None, "Update / Pull Changes"),
+                                           self.doPull, "Update / Pull Changes"),
             "clone"  :  self.addToolButton("Clone",      progPath+"/icons/checkout.png",
                                            None, "Checkout / Clone"),
             "branch" :  self.addToolButton("Branch",     progPath+"/icons/branch.png",
@@ -207,7 +209,7 @@ class RGitVersions(QMainWindow):
         toolButton.setIcon( QIcon(iconFile))
         toolButton.setIconSize(QSize(48,48))
         toolButton.setText(text)
-        print(">>toolButton>>", text)
+        # print(">>toolButton>>", text)
         toolButton.setStyleSheet("QToolButton {font-size:10px;}")
         if func is None:
             toolButton.setToolTip(tooltip + "\n (disabled)")
@@ -310,7 +312,10 @@ class RGitVersions(QMainWindow):
 
     def refreshTrees(self):
         sel = self.dirTree.selectedItems()
-        dirName = sel[0].text(0)
+        if len(sel)>0:
+            dirName = sel[0].text(0)
+        else:
+            dirName = None
 
         self.dirTree.clear()
         # self.fileTree.clear()
@@ -318,13 +323,14 @@ class RGitVersions(QMainWindow):
         self.dirTree.addTopLevelItem(self.rootItem)
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
-        items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
+        if dirName is not None:
+            items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
 
-        for item in items:
-            if item.text(0) == dirName:
-                self.dirTree.setCurrentItem(item)
-                self.showFiles(item)
-                break
+            for item in items:
+                if item.text(0) == dirName:
+                    self.dirTree.setCurrentItem(item)
+                    self.showFiles(item)
+                    break
         
 
     def refreshStatus(self):
@@ -414,6 +420,12 @@ class RGitVersions(QMainWindow):
         if len(files) >0 :
             self.commitDlg = CommitDialog(self, self.rgd, branch, files, push=push)
             self.commitDlg.commitExecuted.connect(self.refreshTrees)
+
+
+    def doPull(self):
+        print(" DO PULL")
+        self.rgd.pull()
+        self.refreshTrees()
 
     def doRevert(self):
         sel = self.fileTree.selectedItems()
