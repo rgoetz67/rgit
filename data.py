@@ -518,7 +518,7 @@ class RGitData():
 
 
 
-    def getDirStatus(self, branch, path):
+    def getDirStatus(self, branch, path, verbose=True):
         statusDict = self.__getDirStatus(branch,  path)
         nStat      =  np.sum(np.array(list(statusDict.values())))
         if nStat == 0:
@@ -526,7 +526,8 @@ class RGitData():
             
         if nStat == 1:   # only a single status
             status = [s  for s,v in statusDict.items() if v][0]
-            print(" ** getDirStatus :", status, path)
+            if verbose:
+                print(" ** getDirStatus :", status, path)
             return status
 
         # Check for only a single status + CURRENT
@@ -534,7 +535,8 @@ class RGitData():
         nStat      =  np.sum(np.array(list(statusDict.values())))
         if nStat == 1:
             status = [s  for s,v in statusDict.items() if v][0]
-            print(" ** getDirStatus :", status, path)
+            if verbose:
+                print(" ** getDirStatus :", status, path)
             return status
 
         # Check status from most important to least

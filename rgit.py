@@ -100,6 +100,10 @@ class RGitVersions(QMainWindow):
         self.branchSelect.setCurrentText("main")
         QShortcut(QKeySequence("Alt+q"), self, self.closeApp)
         self.show()
+        self.updTimer = QTimer()
+        self.updTimer.timeout.connect(self.refreshStatus)
+        self.updTimer.setInterval(500)
+        self.updTimer.start()
 
 
     def initUI(self):
@@ -237,6 +241,7 @@ class RGitVersions(QMainWindow):
 
 
     def fill(self, branch=None):
+        self.dirItems = []
         self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
         status = self.rgd.getDirStatus(branch,  ".")
         self.rootItem.setText(1, status)
@@ -250,8 +255,8 @@ class RGitVersions(QMainWindow):
                     item.setData(0, Qt.UserRole , (e, f))
                     self.colorizeTreeItem(item, status)
                     self.__fill(branch, e,  f, item)
+                    self.dirItems.append(item)
         QTimer.singleShot(500, self.resizeDirTree)
-    
 
     def __fill(self, branch, parentElem, parentPath, parentItem):
         for f in parentElem["files"]:
@@ -259,12 +264,14 @@ class RGitVersions(QMainWindow):
             if len(e["files"])>0:
                 item = QTreeWidgetItem(parentItem, [e["name"], ""])
                 item.setData(0, Qt.UserRole , (e, f))
+                self.dirItems.append(item)
                 self.__fill(branch, e,  f, item)
 
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
         #    print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
         branch = parentItem.data(0, Qt.UserRole)[0]["branch"]
@@ -297,7 +304,9 @@ class RGitVersions(QMainWindow):
             item.setData(0, Qt.UserRole , (f, branch, eid))
             self.colorizeTreeItem(item, status)
             self.fileTree.addTopLevelItem(item)
+            self.fileItems.append(item)
         self.resizeFileTree()
+
 
     def refreshTrees(self):
         sel = self.dirTree.selectedItems()
@@ -317,7 +326,21 @@ class RGitVersions(QMainWindow):
                 self.showFiles(item)
                 break
         
-        
+
+    def refreshStatus(self):
+        for item in self.dirItems:
+            _, f = item.data(0, Qt.UserRole)
+            status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False)
+            item.setText(1, status)
+            self.colorizeTreeItem(item, status)
+        for item in self.fileItems:
+            f, branch, eid = item.data(0, Qt.UserRole)
+            if len(self.rgd.branchFiles[branch][f]["files"])>0:
+                status = self.rgd.getDirStatus(branch, f, verbose=False)
+            else:
+                status = self.rgd.getFileStatus(eid, f)
+            item.setText(1, status)
+            self.colorizeTreeItem(item, status)
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
