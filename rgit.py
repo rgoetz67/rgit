@@ -272,11 +272,12 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-        #    print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
         branch = parentItem.data(0, Qt.UserRole)[0]["branch"]
+        print(">>>", files)
         for f in files:
             e   = self.rgd.branchFiles[branch][f]
             eid = e["id"]
@@ -362,6 +363,7 @@ class RGitVersions(QMainWindow):
                         
 
     def showFiles(self, e):
+        print(e)
         self.fillFileList(e)
 
 

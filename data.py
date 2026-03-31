@@ -74,8 +74,9 @@ class GitCallbacks(pygit2.RemoteCallbacks):
         print("Retrieved objects: {}/{}".format(stats.indexed_objects, stats.total_objects), end="\r")
 
 
-    # self.firstCommitOfBlob[branch][blob.id][path] = [firstCommit.id, firstCommitTime, blob.id]   ->cached
-    # self.allCommitIds [branch]     = set( commitId)     -> cached
+    # self.commitsByPath[branch][path] = [ [commitId, commitTime, blobId], ...]
+    # self.newFilesInCommit[commitId] = [ path, ...]
+    # self.allCommitIds [branch][path] = set( commitId)     -> cached
     # ### self.branchPath[branch] = [path]
     # self.branchPath[path] = [branches]
     # self.repoFiles[path] = { "name":name, 
@@ -115,10 +116,12 @@ class RGitData():
                                 "remote" : list(self.repo.branches.remote)}
         self.branches["all"] = self.branches["local"] + self.branches["remote"]
         self.repoFiles    = {}
-        self.firstCommitOfBlob     = defaultdict(dict)
         self.branchFiles  = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
         self.branchPath   = defaultdict(set)
+        self.commitsByPath = {}
+        self.newFilesInCommit = defaultdict(set)
+        self.commitsByBlob = {}
         self.copies       = {}
         self.tags         = {}
         self.updated      = {"rf" : False,"tags": False}
@@ -261,16 +264,18 @@ class RGitData():
             esid = str(e.id)
             com  = [str(commit.id), commit.commit_time, str(e.id), path]
 
-            if esid not in  self.firstCommitOfBlob[branchName]:
-                self.firstCommitOfBlob[branchName][esid] = {}
-                self.updated[branchName]= True
-            if path not in  self.firstCommitOfBlob[branchName][esid]:
-                self.firstCommitOfBlob[branchName][esid][path] = com
-                self.updated[branchName]= True
-            else:
-                if commit.commit_time < self.firstCommitOfBlob[branchName][esid][path][1]:
-                    self.firstCommitOfBlob[branchName][esid][path] = com
-                    self.updated[branchName]= True
+            
+            self.commitsByPath[branchName][path]. append(com)
+#             if esid not in  self.firstCommitOfBlob[branchName]:
+#                 self.firstCommitOfBlob[branchName][esid] = {}
+#                 self.updated[branchName]= True
+#             if path not in  self.firstCommitOfBlob[branchName][esid]:
+#                 self.firstCommitOfBlob[branchName][esid][path] = com
+#                 self.updated[branchName]= True
+#             else:
+#                 if commit.commit_time < self.firstCommitOfBlob[branchName][esid][path][1]:
+#                     self.firstCommitOfBlob[branchName][esid][path] = com
+#                     self.updated[branchName]= True
 
 
 
@@ -289,10 +294,11 @@ class RGitData():
         if branchName not in self.allCommitIds:
             self.allCommitIds[branchName] = set()
             self.updated[branchName]= True
-        if branchName not in self.firstCommitOfBlob:
-            self.firstCommitOfBlob[branchName] = {}
-            self.updated[branchName]= True
-        
+#         if branchName not in self.firstCommitOfBlob:
+#             self.firstCommitOfBlob[branchName] = {}
+#             self.updated[branchName]= True
+        self.commitsByPath[branchName]    = defaultdict(list)
+            
         repo   = self.repo
         walker = repo.walk(repo.head.target, pygit2.GIT_SORT_TIME )
         commitList = list([c  for c in walker])
@@ -310,15 +316,27 @@ class RGitData():
                 self.updated[branchName]= True
                 
 
-        for eid in self.firstCommitOfBlob[branchName]:
-            for path in self.firstCommitOfBlob[branchName][eid]:
-                firstCommit = self.firstCommitOfBlob[branchName][eid][path]
-                if path not in  self.repoFiles:
-                    self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
-                    self.updated["rf"] = True
-                if firstCommit[1] >0:
-                    self.repoFiles[path]["commits"].append(firstCommit )
-                    self.updated["rf"] = True
+        for path in self.commitsByPath[branchName]:
+            if path not in  self.repoFiles:
+                self.repoFiles[path] = self.__newRepoFile(os.path.basename(path),isDir=path[-1]=="/")
+                self.updated["rf"] = True
+            commits = list(sorted(self.commitsByPath[branchName][path],  key = lambda x : -x[1]))
+            activeCommits = []
+            for i in range(len(commits[:-1])):
+                if commits[i][2] != commits[i+1][2]:
+                    activeCommits.append(commits[i])
+            activeCommits.append(commits[-1])
+            self.repoFiles[path]["commits"] = list(reversed(activeCommits))
+        self.postProcess2(branchName)
+#         for eid in self.firstCommitOfBlob[branchName]:
+#             for path in self.firstCommitOfBlob[branchName][eid]:
+#                 firstCommit = self.firstCommitOfBlob[branchName][eid][path]
+#                 if path not in  self.repoFiles:
+#                     self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
+#                     self.updated["rf"] = True
+#                 if firstCommit[1] >0:
+#                     self.repoFiles[path]["commits"].append(firstCommit )
+#                     self.updated["rf"] = True
             
 
     def postProcess(self):
@@ -333,6 +351,18 @@ class RGitData():
                 else:
                     if not self.repoFiles[path]["isDir"]:
                         print("No commits for ", path, "\t", self.repoFiles[path]["isDir"])
+
+
+    def postProcess2(self, branch):
+        #FIXME add this to loadCaches
+        self.commitsByBlob[branch] = {}
+        for path in self.repoFiles:
+            if path not in self.commitsByBlob[branch] :
+                self.commitsByBlob[branch][path] = defaultdict(list)
+            for commitId, commitTime, blobId, path in self.repoFiles[path]["commits"]:
+                self.newFilesInCommit[commitId].add((blobId, path))
+                self.commitsByBlob[branch][path][blobId].append((commitId, commitTime))
+
 
 
     def collectTags(self):
@@ -409,7 +439,7 @@ class RGitData():
                 self.tags = json.load(inp)
         for branch in branches:
             self.loadBranchCache(branch)
-
+            self.postProcess2(branch)
             
     def loadBranchCache(self, branch):
         if "/" in branch:
@@ -422,12 +452,8 @@ class RGitData():
             with open(cf) as inp:
                 print("LOAD  %s CACHE"% branch)
                 conf =json.load(inp)
-                self.firstCommitOfBlob[branch] = conf["firstCommits"]
-                self.allCommitIds[branch] = set(conf["commits"])
-            # FIXME addinf branchesa correclty
-            for eid in self.firstCommitOfBlob[branch]:
-                for path in self.firstCommitOfBlob[branch][eid]:
-                    self.branchPath[path].add(branch)
+                self.commitsByPath[branch] = conf["commitsByPath"]
+                self.allCommitIds[branch]  = set(conf["commits"])
                 
 
     def saveCaches(self, branches, repoFiles=False):
@@ -455,8 +481,8 @@ class RGitData():
             if self.updated[branch]:
                 with open(cf, "w") as out:
                     print("SAVE %s CACHE" % branch)
-                    cache = {"firstCommits" : self.firstCommitOfBlob[branch],
-                             "commits"      : list(self.allCommitIds[branch])
+                    cache = {"commitsByPath" : self.commitsByPath[branch],
+                             "commits"       : list(self.allCommitIds[branch])
                              }
                     json.dump(cache, out , indent=4)
                     self.updated[branch] = False
@@ -603,12 +629,13 @@ class RGitData():
 
 
     def newFilesInCommit(self, branch, commitId):
-        newFiles = []
-        for eid in self.firstCommitOfBlob[branch]:
-            for path,v in self.firstCommitOfBlob[branch][eid].items():
-                if v[0] == commitId:
-                    newFiles.append((eid, path))
-        return newFiles
+        return self.newFilesInCommit[branch][commitId]
+#         newFiles = []
+#         for eid in self.firstCommitOfBlob[branch]:
+#             for path,v in self.firstCommitOfBlob[branch][eid].items():
+#                 if v[0] == commitId:
+#                     newFiles.append((eid, path))
+#         return newFiles
 
 
     def previousCommit(self, branch, path, commitId, commitTime):
@@ -622,6 +649,15 @@ class RGitData():
         return None
 
 
+
+    def getLastCommit(self, path):
+        if path in self.repoFiles:
+            for commitId, _, blobId, p in reversed(self.repoFiles[path]["commits"]):
+                if p==path:
+                    return commitId
+        return ""
+
+    
 
     def getDifFile(self, branch, filePath , blobId):
         if self.repo.workdir[-1] in ["/","\\"]:
@@ -637,7 +673,8 @@ class RGitData():
             return None
         
         entry    = self.repo.get(blobId)
-        commitId = self.firstCommitOfBlob[branch][blobId][filePath][0]
+        # FIXME
+        commitId = self.getLastCommit(filePath)
         bf, ext  = os.path.splitext(os.path.basename(filePath))
         tmpFilePath = "/tmp/" + bf+"."+ commitId + ext
         with open(tmpFilePath, "wb") as out:
@@ -671,20 +708,26 @@ class RGitData():
         self.diffFilePath2 = None
             
     def getCommitOfBlob(self, branch, path, blobId):
-        if branch in self.firstCommitOfBlob:
-            if blobId in self.firstCommitOfBlob[branch]:
-                if path in self.firstCommitOfBlob[branch][blobId]:
-                    print( self.firstCommitOfBlob[branch][blobId])
-                    return self.firstCommitOfBlob[branch][blobId][path][0]
-        return None
+        commits = self.commitsByBlob[branch][path][blobId]
+        return list(sorted(commits, key= lambda x: x[1]))[-1][0]  # last tuple, fiurst tuple elem
+#         if branch in self.firstCommitOfBlob:
+#             if blobId in self.firstCommitOfBlob[branch]:
+#                 if path in self.firstCommitOfBlob[branch][blobId]:
+#                     print( self.firstCommitOfBlob[branch][blobId])
+#                     return self.firstCommitOfBlob[branch][blobId][path][0]
+#         return None
 
 
     def getBlobIdInCommit(self, branch, commitId, path):
-        for blobId in self.firstCommitOfBlob[branch]:
-            if path in self.firstCommitOfBlob[branch][blobId]:
-                if self.firstCommitOfBlob[branch][blobId][path][0] == commitId:
-                    return blobId
-        return None
+        for blobId, p in self.newFilesInCommit[commitId]:
+            if path == p:
+                return blobId
+        
+#         for blobId in self.firstCommitOfBlob[branch]:
+#             if path in self.firstCommitOfBlob[branch][blobId]:
+#                 if self.firstCommitOfBlob[branch][blobId][path][0] == commitId:
+#                     return blobId
+#         return None
                                              
     def commitForPath(self, branch, path):
         cl= []
