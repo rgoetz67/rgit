@@ -81,7 +81,7 @@ class GitCallbacks(pygit2.RemoteCallbacks):
     # self.repoFiles[path] = { "name":name, 
     #                          "isDir":  bool
     #                          "lastCommit" : (commit.id, commitTime) 
-    #                          "commits" : [(commit.id, commitTime, blob.id/tree.id) ....]
+    #                          "commits" : [(commit.id, commitTime, blob.id/tree.id, path) ....]
     #                          "files" : [ path, ....]}   -> cached and updated on start
     # global cache: repoFiles
     # branchCache : firstCommitOfBlob allCommitIds  
@@ -106,6 +106,7 @@ class RGitData():
         self.branchFiles  = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
         self.branchPath   = defaultdict(set)
+        self.copies       = {}
         self.tags         = {}
         self.updated      = {"rf" : False,"tags": False}
 
@@ -173,19 +174,52 @@ class RGitData():
         return  { "name":name,
                   "isDir":isDir,
                   "commits": commits ,
-                  "files" :files or [],
+ #                 "files" :files or [],
                   "copiedFrom":""
                   }
 
 
-    def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
+    def detectCopiesInCommit(self,commit):
+        cts = datetime.datetime.fromtimestamp(commit.commit_time).strftime("%Y-%m-%d %H:%M:%S")
+        svn = commit.message_trailers.get("git-svn-id", "").split(" ")[0].split("/")[-1]
+        print(" DETECT COPIES %s @ %s [%s]:" %(str(commit.id), cts, svn))
+        t0 =time.time()
+        for parentCommitId in commit.parent_ids:
+            t1 =time.time()
+            differ = self.repo.diff(parentCommitId, commit.id)
+            n1 = len([d for d in differ])
+            differ.find_similar()
+            t2 =time.time()
+            n2 = len([d for d in differ])
+            diffList = [ d for d in list(differ.deltas)]
+            for diff in diffList:
+                if isinstance(diff, pygit2.DiffDelta):
+                    if diff.new_file.path != diff.old_file.path:
+                        print("     Commit %s @ %s :  MOVED " %(str(commit.id), cts), diff.old_file.path)
+                        print("%*s   TO "%(78, ""), diff.new_file.path)
+                        # copies[origPath] = curPath
+                        # since we work from new to old, if the newPath is already stored as copies source then use this information:
+                        if diff.new_file.path in self.copies:
+                            self.copies[diff.old_file.path] = self.copies[diff.new_file.path]
+                        else:
+                            self.copies[diff.old_file.path] = diff.new_file.path
+
+#            print("\t\t\t\t\t\t\t\t\t\tdone for %s after %7.2fs / %7.2fs" %(parentCommitId, t2-t1, time.time()-t2), n1, n2)
+#        print("\t\t\t\t\t\t\t\t\t\t\t\t done after %7.2fs" %(time.time()-t0))
+        return self.copies
+
+    def collectBlobsFromTree(self, branchName, tree, commit, parentPath, copies):
         repo   = self.repo
+
+                    
+
         for e in tree:
             path = parentPath+"/"+ e.name
             if e.filemode == pygit2.GIT_FILEMODE_TREE:
                 isDir = True
             else:
                 isDir = False
+
 
             if path not in  self.repoFiles:
                 print("\t * add path to repoFiles:", path)
@@ -194,15 +228,15 @@ class RGitData():
             else:
                 self.branchPath[path].add(branchName)
 
-            if path not in self.repoFiles[parentPath]["files"]:
-                self.repoFiles[parentPath]["files"].append(path)
-                self.updated["rf"] = True
+#             if path not in self.repoFiles[parentPath]["files"]:
+#                 self.repoFiles[parentPath]["files"].append(path)
+#                 self.updated["rf"] = True
 
             if isDir:
                 nextTree = repo.get(e.id)
-                self.collectBlobsFromTree(branchName,nextTree, commit,path)
+                self.collectBlobsFromTree(branchName,nextTree, commit,path, copies)
             esid = str(e.id)
-            com  = [str(commit.id), commit.commit_time, str(e.id)]
+            com  = [str(commit.id), commit.commit_time, str(e.id), path]
 
             if esid not in  self.firstCommitOfBlob[branchName]:
                 self.firstCommitOfBlob[branchName][esid] = {}
@@ -244,11 +278,12 @@ class RGitData():
             self.updated["rf"] = True
         prevTime = commitList[0].commit_time +10
         for commit in commitList:
+            # copies = self.detectCopiesInCommit(commit)
             if commit.id in self.allCommitIds[branchName]:
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
             if str(commit.id) not in self.allCommitIds[branchName]:
                 self.allCommitIds[branchName].add(str(commit.id))
-                self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
+                self.collectBlobsFromTree( branchName, commit.tree, commit, ".", copies)
                 self.updated[branchName]= True
                 
 
@@ -548,7 +583,7 @@ class RGitData():
         commits = sorted( [ c  for c in self.repoFiles[path]["commits"]    if c[1] < commitTime],
                           key = lambda c: -c[1])
         print("commits:", commits)
-        for commitId, commitTime, entryId in commits:
+        for commitId, commitTime, entryId, _path in commits:
             if commitId in self.allCommitIds[branch]:
                 return entryId
         return None
@@ -620,7 +655,7 @@ class RGitData():
                                              
     def commitForPath(self, branch, path):
         cl= []
-        for commitId, commitTime, _ in self.repoFiles[path]["commits"]:
+        for commitId, commitTime, _, _ in self.repoFiles[path]["commits"]:
             if commitId in self.allCommitIds[branch]:
                 cl.append((commitId, commitTime))
         return [e[0]  for e in sorted(cl, key=lambda x:-x[1]) ]

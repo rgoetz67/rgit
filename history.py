@@ -146,7 +146,7 @@ class HistoryView(QFrame):
         self.blobHist = []
         self.blameWin = None
         self.commits  = sorted(rgd.repoFiles[filePath]["commits"], key = lambda c:-c[1])
-        for commitId, commitTime, blobId in self.commits:
+        for commitId, commitTime, blobId, _ in self.commits:
             commit   = rgd.repo.get(commitId)
             entry    = rgd.repo.get(blobId)
             self.blobHist.append(blobId)
@@ -255,7 +255,7 @@ class HistoryView(QFrame):
             shortCommitHash = sel[0].text(3)
             commitTimeStr   = sel[0].text(7)
             commitTimeInt   = int(datetime.datetime.fromisoformat(commitTimeStr).timestamp())
-            for i, (commitId, commitTime, blobId) in enumerate(self.commits[:-1]):
+            for i, (commitId, commitTime, blobId,_path) in enumerate(self.commits[:-1]):
                 if blobId[:7] == shortBlobHash and commitId[:7] == shortCommitHash and  commitTimeInt == commitTime:
                     if self.blameWin is None:
                         self.blameWin = BlameDisplay(self,self.rgd, self.branch,
@@ -274,7 +274,7 @@ class HistoryView(QFrame):
             shortCommitHash = sel[0].text(3)
             commitTimeStr   = sel[0].text(7)
             commitTimeInt   = int(datetime.datetime.fromisoformat(commitTimeStr).timestamp())
-            for i, (commitId, commitTime, blobId) in enumerate(self.commits[:-1]):
+            for i, (commitId, commitTime, blobId, _path) in enumerate(self.commits[:-1]):
                 if     blobId[:7]    == shortBlobHash   and \
                        commitId[:7]  == shortCommitHash and \
                        commitTimeInt == commitTime:

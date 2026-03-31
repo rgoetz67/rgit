@@ -211,6 +211,8 @@ class RGitVersions(QMainWindow):
             toolButton.setToolTip(tooltip)
         if func is not None:
             toolButton.clicked.connect(func)
+        else:
+            toolButton.setEnabled(False)
         toolButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon);
         self.tools.layout().addWidget(toolButton)
         return  toolButton
@@ -410,7 +412,7 @@ class RGitVersions(QMainWindow):
         if len(sel) == 1:
             filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
             if filePath in self.rgd.repoFiles:
-                commitId, commitTime, blobId = self.rgd.repoFiles[filePath]["commits"][-1]
+                commitId, commitTime, blobId, _ = self.rgd.repoFiles[filePath]["commits"][-1]
                 self.rgd.doDiff(branch, filePath, None, filePath, blobId)
 
 
@@ -437,7 +439,7 @@ class RGitVersions(QMainWindow):
             entryId  = sel[0].data(0, Qt.UserRole)[2]
             print("History for " , filePath, filePath in self.rgd.repoFiles)
             if filePath in self.rgd.repoFiles:
-                for commitId, commitTime, blobId in self.rgd.repoFiles[filePath]["commits"]:
+                for commitId, commitTime, blobId, _ in self.rgd.repoFiles[filePath]["commits"]:
                     commit   = self.rgd.repo.get(commitId)
                     entry    = self.rgd.repo.get(blobId)
                     timStr   =  datetime.datetime.fromtimestamp(commit.commit_time).strftime("%Y-%m-%d %H:%M:%S")
