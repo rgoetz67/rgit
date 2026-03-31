@@ -53,29 +53,38 @@ class CommitDialog(QFrame):
         self.gbox = QGridLayout()
         self.setLayout(self.gbox)
 
+        self.lFiles    = QLabel("Files to be commited:")
         self.filesList = QTreeWidget()
         self.filesList.setMinimumSize(480,320)
         self.filesList.setColumnCount(3)
         self.filesList.setHeaderLabels(["FileName", "", ""])
 
-        self.message = QPlainTextEdit()
-
+        self.lMessage  = QLabel("Commit Message:")
+        self.message   = QPlainTextEdit()
+        font = QFont("Liberation Mono")
+        self.message.setFont(font)
+        self.lMessage.setStyleSheet("QLabel {margin-top:12px}")
         self.buttons   =self.buttonFrame()
 
-        self.gbox.addWidget(self.message,   2,1,1, 2)
-        self.gbox.addWidget(self.filesList, 1,1,1, 2)
-        self.gbox.addWidget(self.buttons,   3,1,2, 2)
+        self.gbox.addWidget(self.lFiles,    1,1,1, 2)
+        self.gbox.addWidget(self.filesList, 2,1,1, 2)
+        self.gbox.addWidget(self.lMessage,  3,1,1, 2)
+        self.gbox.addWidget(self.message,   4,1,1, 2)
+        self.gbox.addWidget(self.buttons,   5,1,2, 2)
 
         self.gbox.setColumnStretch(1,1)
         self.gbox.setColumnStretch(2,1)
-        self.gbox.setRowStretch(1,1)
+        self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,1)
-        self.gbox.setRowStretch(3,0)
+        self.gbox.setRowStretch(2,0)
+        self.gbox.setRowStretch(4,1)
+        self.gbox.setRowStretch(5,0)
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
         self.setMinimumWidth(640)
         self.filesList.setMinimumHeight(320)
         self.message.setMinimumHeight(240)
+        self.message.setTabStopDistance( 56)  # 7 pixel per char seem to be corerct
 
 
     def buttonFrame(self):
