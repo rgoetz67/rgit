@@ -145,6 +145,7 @@ class CommitDialog(QFrame):
             self.comMsg.setText("Commit & Push in progress")
         else:
             self.comMsg.setText("Commit in progress")
+        self.comMsg.repaint()
         
         self.lFiles.setEnabled(False)  
         self.filesList.setEnabled(False)  
