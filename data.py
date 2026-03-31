@@ -208,7 +208,7 @@ class RGitData():
 #        print("\t\t\t\t\t\t\t\t\t\t\t\t done after %7.2fs" %(time.time()-t0))
         return self.copies
 
-    def collectBlobsFromTree(self, branchName, tree, commit, parentPath, copies):
+    def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
         repo   = self.repo
 
                     
@@ -234,7 +234,7 @@ class RGitData():
 
             if isDir:
                 nextTree = repo.get(e.id)
-                self.collectBlobsFromTree(branchName,nextTree, commit,path, copies)
+                self.collectBlobsFromTree(branchName,nextTree, commit,path)
             esid = str(e.id)
             com  = [str(commit.id), commit.commit_time, str(e.id), path]
 
@@ -283,7 +283,7 @@ class RGitData():
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
             if str(commit.id) not in self.allCommitIds[branchName]:
                 self.allCommitIds[branchName].add(str(commit.id))
-                self.collectBlobsFromTree( branchName, commit.tree, commit, ".", copies)
+                self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
                 self.updated[branchName]= True
                 
 
