@@ -73,7 +73,7 @@ class CommitDialog(QFrame):
         self.gbox.addWidget(self.filesList, 2,1,1, 2)
         self.gbox.addWidget(self.lMessage,  3,1,1, 2)
         self.gbox.addWidget(self.message,   4,1,1, 2)
-        self.gbox.addWidget(self.buttons,   5,1,2, 2)
+        self.gbox.addWidget(self.comMsg ,   5,1,2, 2)
         self.gbox.addWidget(self.buttons,   6,1,2, 2)
 
         self.gbox.setColumnStretch(1,1)
