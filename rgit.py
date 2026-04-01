@@ -232,16 +232,46 @@ class RGitVersions(QMainWindow):
     def initMenus(self):
         self.menu = {"addOnly"  : QMenu(),
                      "commited" : QMenu(),
-                     "modified" : QMenu()
+                     "modified" : QMenu(),
+                     "remoteUp" : QMenu()
                      }
         self.menuActions = {"add"     : self.menu["addOnly"].addAction("Add File"),
-                            "commit"  : self.menu["modified"].addAction("Commit & Push"),
+                            "showN"   : self.menu["addOnly"].addAction("Show Content"),
+                            
+                            "commit"  : self.menu["modified"].addAction("Commit && Push"),
                             "commitL" : self.menu["modified"].addAction("Commit Locally"),
+                            "revert"  : self.menu["modified"].addAction("Revert local changes"),
+                            "restore" : self.menu["modified"].addAction("Restore from Origin"),
+                            "remove"  : self.menu["modified"].addAction("Remove from Repo"),
+                            "show"    : self.menu["modified"].addAction("Show Content"),
+                            "move"    : self.menu["modified"].addAction("Move File"),
+                            
+                            "removeC" : self.menu["commited"].addAction("Remove from Repo"),
+                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
+                            "showC"   : self.menu["commited"].addAction("Show Content"),
+                            "moveC"   : self.menu["commited"].addAction("Move File"),
+
+                            "update"  : self.menu["remoteUp"].addAction("Update to origin"),
+
                             }
 
         self.menuActions["add"].triggered.connect(self.doAddFile)
+        self.menuActions["showN"].triggered.connect(self.doDummy)
+        
+        self.menuActions["remove"].triggered.connect(self.doDummy)
+        self.menuActions["revert"].triggered.connect(self.doDummy)
+        self.menuActions["restore"].triggered.connect(self.doDummy)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
         self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
+        self.menuActions["show"].triggered.connect(self.doDummy)
+        self.menuActions["move"].triggered.connect(self.doDummy)
+
+        self.menuActions["removeC"].triggered.connect(self.doDummy)
+        self.menuActions["restoreC"].triggered.connect(self.doDummy)
+        self.menuActions["showC"].triggered.connect(self.doDummy)
+        self.menuActions["moveC"].triggered.connect(self.doDummy)
+
+        self.menuActions["update"].triggered.connect(self.doDummy)
 
 
     def toolFrame(self):
@@ -418,8 +448,15 @@ class RGitVersions(QMainWindow):
         if status == "not versioned":
             self.curContextItem = item
             self.menu["addOnly"].popup(self.cursor().pos())
-#            self.menu["addOnly"].exec()
-#             print("pop up  'addOnly'", p, self.mapToGlobal(p),  self.mapFrom(self,p), self.geometry(), self.pos() , self.cursor().pos())
+        elif status in ["MODIFIED"]:
+            self.curContextItem = item
+            self.menu["modified"].popup(self.cursor().pos())
+        elif status in ["CURRENT"]:
+            self.curContextItem = item
+            self.menu["commited"].popup(self.cursor().pos())
+        elif status in ["Remote Update"]:
+            self.curContextItem = item
+            self.menu["remoteUp"].popup(self.cursor().pos())
 
 
     def refreshTrees(self):
@@ -546,7 +583,9 @@ class RGitVersions(QMainWindow):
                             files.append(f2)
         else:
             for item in sel2:
-                files += self.__getCommitFilesFromFileItem(item)
+                for f in self.__getCommitFilesFromFileItem(item):
+                    if f not in files:
+                        files.append(f)
         return files
 #                 f = item.data(0, Qt.UserRole)[0]
 #                 branch = item.data(0, Qt.UserRole)[1]
@@ -569,8 +608,7 @@ class RGitVersions(QMainWindow):
                 if f2 not in files:
                     return f2
         elif self.rgd.isModified(f):
-            if f not in files:
-                return [f]
+            return [f]
         return []
 
 
@@ -643,8 +681,12 @@ class RGitVersions(QMainWindow):
             self.histDialog.fill(self.rgd, filePath, self.curBranch)
             self.histDialog.show()
         
-
+    
+    def doDummy(self):
+        pass
+    
     def closeApp(self):
+        self.updTimer.stop()
         super().close()
 
 
