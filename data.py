@@ -91,6 +91,14 @@ class GitCallbacks(pygit2.RemoteCallbacks):
 
 preferedPrimaryBranchNames = ["trunk", "main", "HEAD", "head", "master"]
 preferedRemotePrefixes     = ["origin", "master"]
+
+statusNameMap = {"WT_MODIFIED" : "MODIFIED",
+                 "INDEX_NEW"   : "ADDED",
+                 }
+                 
+
+
+
 class RGitData():
 
     def __init__(self, curBranch):
@@ -126,7 +134,7 @@ class RGitData():
         self.tags         = {}
         self.updated      = {"rf" : False,"tags": False}
 
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "WT_MODIFIED", "Not Comitted", "CURRENT"]
+        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
         self.diffCommand = "tkdiff %1 %2"
 
         self.primaryBranches = []
@@ -141,7 +149,6 @@ class RGitData():
         self.curBranch = localPrim
 
         remotePrim = ""
-        print("::::", self.branches["remote"])
         if len(self.branches["remote"]) == 1:
             remotePrim = self.branches["remote"][0]
             self.curRemote = remotePrim.wplit("/")[0]
@@ -157,15 +164,13 @@ class RGitData():
 
 
         self.primaryBranches = [localPrim, remotePrim]
-        print(">>>>>", self.primaryBranches)
-        print(">>>>>", self.curRemote, self.curRemoteBranch,  self.curBranch)
-
 
         t0 = time.time()
         self.loadCaches(self.primaryBranches)
         self.getBranchFiles(self.curBranch)
         for branch in self.primaryBranches:
             if branch != self.curBranch:
+                print("\n scan ", branch)
                 self.getBranchFiles(branch)
         print("------> %7.2fs" %(time.time()-t0))
         for branch in self.primaryBranches:
@@ -191,8 +196,15 @@ class RGitData():
 
     def getBranchFiles(self, branch):
         self.branchFiles[branch] = {"." :{"id":None, "name":"", "branch":branch, "files":[]} }
-        tree = self.repo.revparse_single(branch).tree
+        if branch in self.branches["local"]:
+            local = True
+            tid = self.repo.index.write_tree()
+            tree = self.repo.get(self.repo.index.write_tree())
+        else:
+            local = False
+            tree = self.repo.revparse_single(branch).tree
         self.__scanBranchTree(branch, tree, ".")
+              
 
 
     def __newRepoFile( self, name, isDir=False,  files = None):
@@ -383,6 +395,8 @@ class RGitData():
         return self.tags.get(cid, [])
 
     def getVersionOfCommit(self, cid):
+        if cid == "":  # not yet coimmitedL
+            return ""
         rVersion = ""
         dVersion = ""
         sVersion = ""
@@ -538,11 +552,12 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
-        if status in ["WT_MODIFIED"]:
+        if status in ["WT_MODIFIED", "INDEX_NEW"]:
             return True
         return False
     
     def getFileStatus(self, branchOrId, path):
+        global statusNameMap
         if branchOrId in self.branches["all"]:
             eid    = self.branchFiles[branchOrId][path]["id"]
         else:
@@ -552,7 +567,8 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
-
+        status = statusNameMap.get(status, status)
+        
         updateAvailable = False
         if path in self.branchFiles[self.curRemoteBranch]:
             
@@ -578,6 +594,7 @@ class RGitData():
     def getDirStatus(self, branch, path, verbose=False):
         statusDict = self.__getDirStatus(branch,  path)
         nStat      =  np.sum(np.array(list(statusDict.values())))
+
         if nStat == 0:
             return "No Status"
             
@@ -609,7 +626,8 @@ class RGitData():
         files = self.branchFiles[branch][path]["files"]
         mergedStatus = {"Not Commited": False,
                         "CURRENT"     : False,
-                        "WT_MODIFIED" : False,
+                        "MODIFIED"    : False,
+                        "ADDED"       : False,
                         "CONFLICT"    : False,
                         "Unknown"     : False
                         }
@@ -708,6 +726,9 @@ class RGitData():
         self.diffFilePath2 = None
             
     def getCommitOfBlob(self, branch, path, blobId):
+        if path not in self.commitsByBlob[branch]:
+            # maybe a file recently added and not yet commited
+            return None
         commits = self.commitsByBlob[branch][path][blobId]
         if len(commits) == 0:
             print("  NO COMMIT FOR ", branch, path, blobId)

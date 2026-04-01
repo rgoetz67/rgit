@@ -57,7 +57,7 @@ class CommitDialog(QFrame):
         self.filesList = QTreeWidget()
         self.filesList.setMinimumSize(480,320)
         self.filesList.setColumnCount(3)
-        self.filesList.setHeaderLabels(["FileName", "", ""])
+        self.filesList.setHeaderLabels(["FileName", "Status", "", ""])
 
         self.lMessage  = QLabel("Commit Message:")
         self.message   = QPlainTextEdit()
@@ -115,11 +115,8 @@ class CommitDialog(QFrame):
         self.revertBtn = {}
         self.fileItems = {}
         for f in files:
-            item = QTreeWidgetItem([f, "", ""])
-        #    item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator)
-            print(">>>>>> ", item.flags())
-#             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            print(">>>>>> \t", item.flags(), Qt.ItemIsUserCheckable)
+            status = self.rgd.getFileStatus(self.branch, f)
+            item   = QTreeWidgetItem([f, status, "", ""])
             item.setCheckState(0, Qt.Checked)
         
             self.filesList.addTopLevelItem(item)
@@ -130,12 +127,13 @@ class CommitDialog(QFrame):
             self.revertBtn[f] = QPushButton("Revert Changes")
             self.revertBtn[f].clicked.connect(self.doRevert)
             self.revertBtn[f].setMaximumWidth(100)
-            self.filesList.setItemWidget(item, 1, self.diffBtn[f])
-            self.filesList.setItemWidget(item, 2, self.revertBtn[f])
+            self.filesList.setItemWidget(item, 2, self.diffBtn[f])
+            self.filesList.setItemWidget(item, 3, self.revertBtn[f])
             self.fileItems[f] = item
         self.filesList.setColumnWidth(1,100)
         self.filesList.setColumnWidth(2,100)
-        self.filesList.setColumnWidth(0, self.width()-224)
+        self.filesList.setColumnWidth(3,100)
+        self.filesList.setColumnWidth(0, self.width()-324)
 
 
 

@@ -53,10 +53,12 @@ from data import RGitData
 from history import HistoryView
 from commitDlg import CommitDialog
 from blame     import BlameDisplay
-
+from selectionMenu import SelectionMenu
 from collections import defaultdict
 import pygit2
 
+
+timFormat = "%Y-%m-%d %H:%M:%S"
 
 class RToolButton(QToolButton):
 
@@ -74,29 +76,32 @@ class RGitVersions(QMainWindow):
         super().__init__()
 
 
-        self.statusColor = {"CURRENT" : "#FF0000",
-                            "WT_MODIFIED"   : "#FF8888",
+        self.statusColor = {"CURRENT"       : "#FFFFFF",
+                            "MODIFIED"      : "#FF8888",
+                            "ADDED"         : "#FFBB88",
                             "Remote Update" : "#AAFFAA",
                             "CONFLICT"      : "#FFCC88",
                             "Not Commited"  : "#CC88FF",
-#                             "" : "",
+                            "not versioned" : "#F4F0F0",
 #                             "" : "",
 #                             "" : "",
                             "Unknown"       : "#FF88FF",
                             "No Status"     : "#EEDDDD",
-                            "WT_MODIFIED ++"   : "#FF4444",
+                            "MODIFIED ++"   : "#FF4444",
+                            "ADDED ++"      : "#FFCC44",
                             "Remote Update ++" : "#AAFF66",
                             "CONFLICT ++ "     : "#FFDD44",
                             "Not Commited ++"  : "#CC88FF",
                             "Unknown ++": "#FF44FF ++ ",
                            }
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "WT_MODIFIED", "Not Comitted", "CURRENT"]
+        # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
         self.curBranch   = "main"
         self.rgd         = RGitData(self.curBranch)
         self.curBranch   = self.rgd.curBranch
         self.dirItems    = []
         self.fileItems   = []
         self.initUI()
+        self.initMenus()
         for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
             self.branchSelect.addItem(b)
         self.branchSelect.setCurrentText("main")
@@ -104,7 +109,7 @@ class RGitVersions(QMainWindow):
         self.show()
         self.updTimer = QTimer()
         self.updTimer.timeout.connect(self.refreshStatus)
-        self.updTimer.setInterval(500)
+        self.updTimer.setInterval(1000)
         self.updTimer.start()
 
 
@@ -132,7 +137,7 @@ class RGitVersions(QMainWindow):
             "commitL":  self.addToolButton("Commit Locally", progPath+"/icons/commitLocal.png",
                                            self.doLocalCommit, "Commit to local repo"),
             "commit" :  self.addToolButton("Commit & Push", progPath+"/icons/commit.png",
-                                           self.doCommit, "Commit to remote repo"),
+                                           self.doCommitAndPush, "Commit to remote repo"),
             "push" :    self.addToolButton("Push Local\nto master", progPath+"/icons/push.png",
                                            self.doPush, "Commit to remote repo"),
             "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
@@ -161,39 +166,82 @@ class RGitVersions(QMainWindow):
         self.fileTree.setMinimumSize(1200,800)
         self.fileTree.setColumnCount(8)
         self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags"])
+        self.fileTree.setContextMenuPolicy(Qt.CustomContextMenu);
         self.dirTree.setHeaderLabels(["Directory","Status"])
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
         self.dirTree.addTopLevelItem(self.rootItem)
 
+        self.showLocal = QCheckBox("Show Local Files")
+        self.lFileType = QLabel("File Types: ")
+        self.fileTypes = SelectionMenu(maxStrLen=40)
+        self.fileTypes.addItems([["C /C++ Files", [".c", ".cc", ".cpp", ".h", ".hpp", ".hh"]],
+                                 ["Python Files", [".py"]],
+                                 ["C# Files", [".cs"]],
+                                 ["Batch Files", [".bat"]],
+                                 ["Shell Scripts", [".sh", ".csh", ".ksh", ".zsh"]],
+                                 ["AWK Files", [".awk", ".gawk"]],
+                                 ["Text Files", [".txt", ".md"]],
+                                 ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
+                                 ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
+                                 ["Java Script Files", [".js"]],
+                                 ["Java Files", [".java", ".class"]],
+                                 ["HTML / CSS Files", [".html", ".htm", ".css"]],
+#                                 ["Python Files", [".py"]],
+#                                 ["Python Files", [".py"]],
+                                 ["Other Files", ["."]]])
+
         self.gbox.addWidget(self.tools,         1, 1, 1, 2)
         self.gbox.addWidget(self.branchSelect,  2, 1, 1, 1)
-        self.gbox.addWidget(self.dirTree,       3, 1, 7, 1)
-        self.gbox.addWidget(self.fileTree,      2, 2, 8, 1)
+        self.gbox.addWidget(self.dirTree,       3, 1, 2, 1)
+        self.gbox.addWidget(self.fileTree,      2, 2, 2, 4)
+        self.gbox.addWidget(self.showLocal,     4, 3, 1, 1)
+        self.gbox.addWidget(self.lFileType,     4, 4, 1, 1)
+        self.gbox.addWidget(self.fileTypes,     4, 5, 1, 1)
 
+        self.gbox.setColumnStretch(1,1)
+        self.gbox.setColumnStretch(2,4)
+        self.gbox.setColumnStretch(3,0)
+        self.gbox.setColumnStretch(4,0)
+        self.gbox.setColumnStretch(5,0)
         self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,0)
-        self.gbox.setRowStretch(3,0)
+        self.gbox.setRowStretch(3,1)
         self.gbox.setRowStretch(4,0)
-        self.gbox.setRowStretch(5,1)
-        self.gbox.setRowStretch(6,0)
-        self.gbox.setRowStretch(7,0)
-        self.gbox.setRowStretch(8,0)
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
 
         self.dirTree.itemClicked.connect(self.showFiles)
         self.dirTree.expanded.connect(self.resizeDirTree)
         self.dirTree.collapsed.connect(self.resizeDirTree)
+        self.showLocal.stateChanged.connect(self.refreshTrees)
+        self.fileTypes.selectionChanged.connect(self.refreshTrees)
+
         self.fileTree.setStyleSheet("QTreeWidget::item {margin-right:0.5em;margin-left:0.5em}")
         self.fileTree.setSelectionMode(QAbstractItemView.ExtendedSelection)
-
+        self.fileTree.customContextMenuRequested.connect(self.showFileContextMenu)
+        
         QShortcut(QKeySequence("Ctrl+l"), self.fileTree, self.showHistory)
         QShortcut(QKeySequence("Ctrl+b"), self.fileTree, self.showBlame)
-        QShortcut(QKeySequence("Ctrl+c"), self.fileTree, self.doCommit)
+        QShortcut(QKeySequence("Ctrl+c"), self.fileTree, self.doCommitAndPush)
         QShortcut(QKeySequence("Ctrl+r"), self.fileTree, self.doRevert)
         QShortcut(QKeySequence("Ctrl+d"), self.fileTree, self.diffWithPrev)
         QShortcut(QKeySequence("Ctrl+Shift+d"),  self.fileTree, self.diffWithHead)
         # FIXME contxt menu
+
+
+    def initMenus(self):
+        self.menu = {"addOnly"  : QMenu(),
+                     "commited" : QMenu(),
+                     "modified" : QMenu()
+                     }
+        self.menuActions = {"add"     : self.menu["addOnly"].addAction("Add File"),
+                            "commit"  : self.menu["modified"].addAction("Commit & Push"),
+                            "commitL" : self.menu["modified"].addAction("Commit Locally"),
+                            }
+
+        self.menuActions["add"].triggered.connect(self.doAddFile)
+        self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
+        self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
 
 
     def toolFrame(self):
@@ -260,6 +308,23 @@ class RGitVersions(QMainWindow):
                     self.dirItems.append(item)
         QTimer.singleShot(500, self.resizeDirTree)
 
+
+
+    def __acceptedExtensions(self):
+        allSel = self.fileTypes.getAllItems(returnData = True)
+        curSel = self.fileTypes.currentSelection(returnData = True)
+        extFilter = {}
+        for extList in allSel:
+            for ext in extList:
+                extFilter[ext] = False
+        for extList in curSel:
+            for ext in extList:
+                extFilter[ext] = True
+        return extFilter
+                
+                
+            
+
     def __fill(self, branch, parentElem, parentPath, parentItem):
         for f in parentElem["files"]:
             e = self.rgd.branchFiles[branch][f]
@@ -272,43 +337,89 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+  #     print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
         branch = parentItem.data(0, Qt.UserRole)[0]["branch"]
-        print(">>>", files)
-        for f in files:
-            e   = self.rgd.branchFiles[branch][f]
-            eid = e["id"]
-            entry = self.rgd.repo.get(eid)
+        folder = parentItem.data(0, Qt.UserRole)[1]
 
-            if len(e["files"])>0:
-                fname = os.path.basename(f) +"/"
-                status = self.rgd.getDirStatus(branch, f)
-                obj = self.rgd.repo.get(e["id"])
+        localFiles = []
+        if self.showLocal.isChecked():
+            extFilter  = self.__acceptedExtensions()
+            for f in glob.glob(folder + "/*"):
+                if f not in files:
+                    if os.path.isdir(f):
+                        localFiles.append(f+"/")
+                    else:
+                        ext = os.path.splitext(f)[1]
+                        if ext in extFilter:
+                            if extFilter[ext]:
+                                localFiles.append(f)
+                        else:
+                            if extFilter["."]:  # aka other files
+                                localFiles.append(f)
+        allFiles = files + localFiles
 
+
+        print("::::::::::", branch, "\t", self.rgd.branchFiles[branch].keys())
+        for f in sorted(allFiles):
+            print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
+            if f in files:
+                e   = self.rgd.branchFiles[branch][f]
+                eid = e["id"]
+                entry = self.rgd.repo.get(eid)
+
+                if len(e["files"])>0:
+                    fname = os.path.basename(f) +"/"
+                    status = self.rgd.getDirStatus(branch, f)
+                    obj = self.rgd.repo.get(e["id"])
+
+                else:
+                    fname = os.path.basename(f)
+                    status = self.rgd.getFileStatus(eid, f)
+
+                branches = self.rgd.getBranchesForPath(f)
+
+                commitId = self.rgd.getCommitOfBlob(branch, f, eid)
+                if commitId is not None:
+                    commit   = self.rgd.repo.get(commitId)
+                    cid  = str(commit.id)
+                    cts  = datetime.datetime.fromtimestamp(commit.commit_time).strftime(timFormat)
+                else:
+                    cid  = ""
+                    cts  = ""
+                item = QTreeWidgetItem([fname , status, commit.short_id, entry.short_id,
+                                        self.rgd.getVersionOfCommit(cid),
+                                        commit.author.name , cts,
+                                        branches, ", ".join(self.rgd.getTagsForCommit(cid))])
+                item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator);
+                item.setData(0, Qt.UserRole , (f, branch, eid))
+                self.colorizeTreeItem(item, status)
+                self.fileTree.addTopLevelItem(item)
+                self.fileItems.append(item)
             else:
-                fname = os.path.basename(f)
-                status = self.rgd.getFileStatus(eid, f)
-            commitId = self.rgd.getCommitOfBlob(branch, f, eid)
-            commit   = self.rgd.repo.get(commitId)
+                status = "not versioned"
+                item = QTreeWidgetItem([f, status, "", "", "", "", "", "", ""])
+                item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator);
+                item.setData(0, Qt.UserRole , (f, branch, None))
+                self.colorizeTreeItem(item, status)
+                self.fileTree.addTopLevelItem(item)
+                self.fileItems.append(item)
+                print("\t\t ==>", item)
 
-            
-               
-            branches = self.rgd.getBranchesForPath(f)
-            cid  = str(commit.id)
-            item = QTreeWidgetItem([fname , status, commit.short_id, entry.short_id,
-                                    self.rgd.getVersionOfCommit(cid),
-                                    commit.author.name ,
-                                    datetime.datetime.fromtimestamp(commit.commit_time).strftime("%Y-%m-%d %H:%M:%S"),
-                                    branches, ", ".join(self.rgd.getTagsForCommit(cid))])
-            item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator);
-            item.setData(0, Qt.UserRole , (f, branch, eid))
-            self.colorizeTreeItem(item, status)
-            self.fileTree.addTopLevelItem(item)
-            self.fileItems.append(item)
         self.resizeFileTree()
+
+
+    def showFileContextMenu(self, p):
+        item = self.fileTree.itemAt(p)
+        print("custom menu at ",p, item, item.text(0), item.text(1))
+        status = item.text(1)
+        if status == "not versioned":
+            self.curContextItem = item
+            self.menu["addOnly"].popup(self.cursor().pos())
+#            self.menu["addOnly"].exec()
+#             print("pop up  'addOnly'", p, self.mapToGlobal(p),  self.mapFrom(self,p), self.geometry(), self.pos() , self.cursor().pos())
 
 
     def refreshTrees(self):
@@ -335,17 +446,20 @@ class RGitVersions(QMainWindow):
         
 
     def refreshStatus(self):
-        for item in self.dirItems:
+        for item in [self.rootItem] +self.dirItems:
             _, f = item.data(0, Qt.UserRole)
             status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False)
             item.setText(1, status)
             self.colorizeTreeItem(item, status)
         for item in self.fileItems:
             f, branch, eid = item.data(0, Qt.UserRole)
-            if len(self.rgd.branchFiles[branch][f]["files"])>0:
-                status = self.rgd.getDirStatus(branch, f, verbose=False)
+            if f in self.rgd.branchFiles[branch]:
+                if len(self.rgd.branchFiles[branch][f]["files"])>0:
+                    status = self.rgd.getDirStatus(branch, f, verbose=False)
+                else:
+                    status = self.rgd.getFileStatus(eid, f)
             else:
-                status = self.rgd.getFileStatus(eid, f)
+                status = "not versioned"
             item.setText(1, status)
             self.colorizeTreeItem(item, status)
 
@@ -363,12 +477,22 @@ class RGitVersions(QMainWindow):
                         
 
     def showFiles(self, e):
-        print(e)
         self.fillFileList(e)
 
 
 
 
+
+    def doAddFile(self):
+        print("add  ", self.curContextItem.text(0))
+        f = self.curContextItem.text(0)
+        if f[:2] == "./":
+            self.rgd.repo.index.add(f[2:])
+        else:
+            self.rgd.repo.index.add(f)
+        self.rgd.repo.index.write()
+        self.refreshTrees()
+            
 
     def __collectModifiedFiles4Commit(self, branch, path):
         files = []
@@ -379,55 +503,89 @@ class RGitVersions(QMainWindow):
         return files
 
 
+
+    def doLocalCommitFromContext(self, item):
+        if len(self.fileTree.selectedItems())>0:
+            files = self.__getCommitFiles()
+            self.__doCommit(files, push=False)
+        else:
+            self.__doCommit(self.__getCommitFilesFromFileItem(item), push=False)
+
+    def doCommitAndPushFromContext(self, item):
+        if len(self.fileTree.selectedItems())>0:
+            files = self.__getCommitFiles()
+            self.__doCommit(files, push=True)
+        else:
+            self.__doCommit(self.__getCommitFilesFromFileItem(item), push=True)
+            
+
     def doLocalCommit(self):
-        print("doCommit")
-        self.__doPush(push=False)
+        files = self.__getCommitFiles()
+        self.__doCommit(files, push=False)
     
     def doPush(self):
         self.rgd.push()
     
-    def doCommit(self):
-        print("doPush")
-        self.__doPush(push=True)
+    def doCommitAndPush(self):
+        files = self.__getCommitFiles()
+        print(">>>>>>", files)
+        self.__doCommit(files, push=True)
         
-    def __doPush(self, push=True):
-        print("doPush push= ", push)
+    def __getCommitFiles(self):
         files = []
         sel1 = self.dirTree.selectedItems()
         sel2 = self.fileTree.selectedItems()
-        print(" ::::" , sel1)
-        print(" ::::" , sel2)
-        for item in sel1:
-            path   = item.data(0, Qt.UserRole)[1]
-            entry  = item.data(0, Qt.UserRole)[0]
-            branch = item.data(0, Qt.UserRole)[0]["branch"]
-            if len(entry["files"])>0:
-                for f2 in self.__collectModifiedFiles4Commit( branch, path):
-                    if f2 not in files:
-                        files.append(f2)
+        if len(sel2) == 0:
+            for item in sel1:
+                path   = item.data(0, Qt.UserRole)[1]
+                entry  = item.data(0, Qt.UserRole)[0]
+                branch = item.data(0, Qt.UserRole)[0]["branch"]
+                if len(entry["files"])>0:
+                    for f2 in self.__collectModifiedFiles4Commit( branch, path):
+                        if f2 not in files:
+                            files.append(f2)
+        else:
+            for item in sel2:
+                files += self.__getCommitFilesFromFileItem(item)
+        return files
+#                 f = item.data(0, Qt.UserRole)[0]
+#                 branch = item.data(0, Qt.UserRole)[1]
+#                 e   = self.rgd.branchFiles[branch][f]
+#                 if len(e["files"])>0:
+#                     for f2 in self.__collectModifiedFiles4Commit( branch, f):
+#                         if f2 not in files:
+#                             files.append(f2)
+#                 elif self.rgd.isModified(f):
+#                     if f not in files:
+#                         files.append(f)
 
-        for item in sel2:
-            
-            f = item.data(0, Qt.UserRole)[0]
-            branch = item.data(0, Qt.UserRole)[1]
-            e   = self.rgd.branchFiles[branch][f]
-            if len(e["files"])>0:
-                for f2 in self.__collectModifiedFiles4Commit( branch, f):
-                    if f2 not in files:
-                        files.append(f2)
-            elif self.rgd.isModified(f):
-                if f not in files:
-                    files.append(f)
-        print("---->", files)
-        if len(files) >0 :
-            self.commitDlg = CommitDialog(self, self.rgd, branch, files, push=push)
-            self.commitDlg.commitExecuted.connect(self.refreshTrees)
+
+    def __getCommitFilesFromFileItem(self, item):
+        f = item.data(0, Qt.UserRole)[0]
+        branch = item.data(0, Qt.UserRole)[1]
+        e   = self.rgd.branchFiles[branch][f]
+        if len(e["files"])>0:
+            for f2 in self.__collectModifiedFiles4Commit( branch, f):
+                if f2 not in files:
+                    return f2
+        elif self.rgd.isModified(f):
+            if f not in files:
+                return [f]
+        return []
+
+
+    def __doCommit(self, files, push=True):
+        self.commitDlg = CommitDialog(self, self.rgd, self.curBranch, files, push=push)
+        self.commitDlg.commitExecuted.connect(self.refreshTrees)
+
 
 
     def doPull(self):
         print(" DO PULL")
         self.rgd.pull()
         self.refreshTrees()
+
+
 
     def doRevert(self):
         sel = self.fileTree.selectedItems()
