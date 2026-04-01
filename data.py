@@ -709,6 +709,9 @@ class RGitData():
             
     def getCommitOfBlob(self, branch, path, blobId):
         commits = self.commitsByBlob[branch][path][blobId]
+        if len(commits) == 0:
+            print("  NO COMMIT FOR ", branch, path, blobId)
+            return None
         return list(sorted(commits, key= lambda x: x[1]))[-1][0]  # last tuple, fiurst tuple elem
 #         if branch in self.firstCommitOfBlob:
 #             if blobId in self.firstCommitOfBlob[branch]:
@@ -791,19 +794,19 @@ class RGitData():
                 
                 # We can just fastforward
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
-                    self.repo.checkout_tree(repo.get(remote_master_id))
+                    self.repo.checkout_tree(self.repo.get(remote_master_id))
                     try:
                         master_ref = self.repo.lookup_reference('refs/heads/%s' % (branch))
                         master_ref.set_target(remote_master_id)
                     except KeyError:
                         print("WARRNING: Local BTRANCH not exists")
-                        self.repo.create_branch(branch, repo.get(remote_master_id))
+                        self.repo.create_branch(branch, self.repo.get(remote_master_id))
                     self.repo.head.set_target(remote_master_id)
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
                     self.repo.merge(remote_master_id)
                     
                     if self.repo.index.conflicts is not None:
-                        for conflict in repo.index.conflicts:
+                        for conflict in self.repo.index.conflicts:
                             print('Conflicts found in:', conflict[0].path)
                         raise AssertionError('Conflicts, ahhhhh!!')
 
@@ -814,7 +817,7 @@ class RGitData():
                                                 user,
                                                 'Merge!',
                                                 tree,
-                                                [repo.head.target, remote_master_id])
+                                                [self.repo.head.target, remote_master_id])
                     # We need to do this or git CLI will think we are still merging.
                     self.repo.state_cleanup()
                 else:
