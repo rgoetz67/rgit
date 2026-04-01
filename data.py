@@ -132,6 +132,7 @@ class RGitData():
         self.commitsByBlob = {}
         self.copies       = {}
         self.tags         = {}
+        self.dirStatusCache = {}
         self.updated      = {"rf" : False,"tags": False}
 
         self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
@@ -590,9 +591,12 @@ class RGitData():
         return status
 
 
+    def resetDirStatusCache(self):
+        self.dirStatusCache = {}
+    
 
-    def getDirStatus(self, branch, path, verbose=False):
-        statusDict = self.__getDirStatus(branch,  path)
+    def getDirStatus(self, branch, path, verbose=False, useDirStatusCache=False):
+        statusDict = self.__getDirStatus(branch,  path, useDirStatusCache=useDirStatusCache)
         nStat      =  np.sum(np.array(list(statusDict.values())))
 
         if nStat == 0:
@@ -622,7 +626,7 @@ class RGitData():
 
 
 
-    def __getDirStatus(self, branch,  path):
+    def __getDirStatus(self, branch,  path, useDirStatusCache=None):
         files = self.branchFiles[branch][path]["files"]
         mergedStatus = {"Not Commited": False,
                         "CURRENT"     : False,
@@ -634,7 +638,10 @@ class RGitData():
         for f in files:
             if f in self.branchFiles[branch]:
                 if len(self.branchFiles[branch][f]["files"])>0:
-                    dirStatus = self.__getDirStatus( branch,  f)
+                    if useDirStatusCache and f in self.dirStatusCache:
+                        dirStatus = self.dirStatusCache[f]
+                    else:
+                        dirStatus = self.__getDirStatus( branch,  f)
                     for k in dirStatus:
                         if dirStatus[k]:
                             mergedStatus[k] = True
@@ -642,6 +649,7 @@ class RGitData():
                 else:
                     fileStatus = self.getFileStatus(branch, f)
                     mergedStatus[fileStatus] = True
+        self.dirStatusCache[path] = mergedStatus
         return mergedStatus
 
 

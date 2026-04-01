@@ -100,6 +100,8 @@ class RGitVersions(QMainWindow):
         self.curBranch   = self.rgd.curBranch
         self.dirItems    = []
         self.fileItems   = []
+        self.statusCache = {}
+        self.updateIndex = 0
         self.initUI()
         self.initMenus()
         for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
@@ -109,9 +111,10 @@ class RGitVersions(QMainWindow):
         self.show()
         self.updTimer = QTimer()
         self.updTimer.timeout.connect(self.refreshStatus)
-        self.updTimer.setInterval(1000)
+        self.updTimer.setInterval(5000)
         self.updTimer.start()
-
+        self.resizeDirTree()
+        self.resizeFileTree()
 
     def initUI(self):
         f = QFrame()
@@ -209,6 +212,7 @@ class RGitVersions(QMainWindow):
         self.gbox.setRowStretch(4,0)
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
+        self.fillFileList(self.rootItem)
 
         self.dirTree.itemClicked.connect(self.showFiles)
         self.dirTree.expanded.connect(self.resizeDirTree)
@@ -314,7 +318,7 @@ class RGitVersions(QMainWindow):
 
 
     def resizeFileTree(self):
-        for c in range(self.fileTree.columnCount()):
+        for c in range(self.fileTree.columnCount()-1):
             self.fileTree.resizeColumnToContents(c)
 
 
@@ -324,6 +328,7 @@ class RGitVersions(QMainWindow):
         self.dirItems = []
         self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
         status = self.rgd.getDirStatus(branch,  ".")
+        self.statusCache["."] = status
         self.rootItem.setText(1, status)
         self.colorizeTreeItem(self.rootItem, status)
         if branch is not None:
@@ -331,11 +336,13 @@ class RGitVersions(QMainWindow):
                 e = self.rgd.branchFiles[branch][f]
                 if len(e["files"])>0:
                     status = self.rgd.getDirStatus(branch,  f)
+                    self.statusCache[f] = status
                     item = QTreeWidgetItem(self.rootItem, [e["name"],status])
                     item.setData(0, Qt.UserRole , (e, f))
                     self.colorizeTreeItem(item, status)
-                    self.__fill(branch, e,  f, item)
-                    self.dirItems.append(item)
+                    self.__fill(branch, e,  f, item, 2)
+                    self.dirItems.append((item,1))
+        
         QTimer.singleShot(500, self.resizeDirTree)
 
 
@@ -355,14 +362,15 @@ class RGitVersions(QMainWindow):
                 
             
 
-    def __fill(self, branch, parentElem, parentPath, parentItem):
+    def __fill(self, branch, parentElem, parentPath, parentItem, lvl):
         for f in parentElem["files"]:
             e = self.rgd.branchFiles[branch][f]
             if len(e["files"])>0:
                 item = QTreeWidgetItem(parentItem, [e["name"], ""])
                 item.setData(0, Qt.UserRole , (e, f))
-                self.dirItems.append(item)
-                self.__fill(branch, e,  f, item)
+                self.dirItems.append((item, lvl))
+                self.__fill(branch, e,  f, item, lvl+1)
+
 
 
     def fillFileList(self, parentItem):
@@ -403,6 +411,7 @@ class RGitVersions(QMainWindow):
                 if len(e["files"])>0:
                     fname = os.path.basename(f) +"/"
                     status = self.rgd.getDirStatus(branch, f)
+                    self.statusCache[f] = status
                     obj = self.rgd.repo.get(e["id"])
 
                 else:
@@ -437,7 +446,7 @@ class RGitVersions(QMainWindow):
                 self.fileTree.addTopLevelItem(item)
                 self.fileItems.append(item)
                 print("\t\t ==>", item)
-
+            self.statusCache[f] = status
         self.resizeFileTree()
 
 
@@ -483,11 +492,19 @@ class RGitVersions(QMainWindow):
         
 
     def refreshStatus(self):
-        for item in [self.rootItem] +self.dirItems:
+        t0 =time.time()
+        print("  refreshStatus  ")
+        # FIXME tree like dir state update
+        self.rgd. resetDirStatusCache()
+        dirItemList =  list(sorted(self.dirItems + [(self.rootItem, 0)], key=lambda x: -x[1]))
+        for item, lvl in dirItemList:
             _, f = item.data(0, Qt.UserRole)
-            status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False)
-            item.setText(1, status)
-            self.colorizeTreeItem(item, status)
+            status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False, useDirStatusCache = True)
+            if status != self.statusCache.get(f, ""):
+                item.setText(1, status)
+                self.colorizeTreeItem(item, status)
+                self.statusCache[f] = status
+        t1 =time.time()
         for item in self.fileItems:
             f, branch, eid = item.data(0, Qt.UserRole)
             if f in self.rgd.branchFiles[branch]:
@@ -497,8 +514,11 @@ class RGitVersions(QMainWindow):
                     status = self.rgd.getFileStatus(eid, f)
             else:
                 status = "not versioned"
-            item.setText(1, status)
-            self.colorizeTreeItem(item, status)
+            if status != self.statusCache.get(f, ""):
+                item.setText(1, status)
+                self.colorizeTreeItem(item, status)
+                self.statusCache[f] = status
+        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0))
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
