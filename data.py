@@ -754,30 +754,18 @@ class RGitData():
         if path not in self.commitsByBlob[branch]:
             # maybe a file recently added and not yet commited
             return None
-        print("####### >",  self.commitsByBlob[branch][path])
         commits = self.commitsByBlob[branch][path][blobId]
         if len(commits) == 0:
             print("  NO COMMIT FOR ", branch, path, blobId)
             return None
         return list(sorted(commits, key= lambda x: x[1]))[-1][0]  # last tuple, fiurst tuple elem
-#         if branch in self.firstCommitOfBlob:
-#             if blobId in self.firstCommitOfBlob[branch]:
-#                 if path in self.firstCommitOfBlob[branch][blobId]:
-#                     print( self.firstCommitOfBlob[branch][blobId])
-#                     return self.firstCommitOfBlob[branch][blobId][path][0]
-#         return None
 
 
     def getBlobIdInCommit(self, branch, commitId, path):
         for blobId, p in self.newFilesInCommit[commitId]:
             if path == p:
                 return blobId
-        
-#         for blobId in self.firstCommitOfBlob[branch]:
-#             if path in self.firstCommitOfBlob[branch][blobId]:
-#                 if self.firstCommitOfBlob[branch][blobId][path][0] == commitId:
-#                     return blobId
-#         return None
+
                                              
     def commitForPath(self, branch, path):
         cl= []
@@ -875,7 +863,7 @@ class RGitData():
                     self.repo.state_cleanup()
                 else:
                     raise AssertionError('Unknown merge analysis result')
-        self.updateLocal()
+        self.updateLocal(None)
 
 
     def addFile(self, f):

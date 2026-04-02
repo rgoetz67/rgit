@@ -479,7 +479,6 @@ class RGitVersions(QMainWindow):
             dirName = sel[0].text(0)
         else:
             dirName = None
-
         self.dirTree.clear()
         # self.fileTree.clear()
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
@@ -488,12 +487,14 @@ class RGitVersions(QMainWindow):
         self.rootItem.setExpanded(True)
         if dirName is not None:
             items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
-
             for item in items:
                 if item.text(0) == dirName:
                     self.dirTree.setCurrentItem(item)
                     self.showFiles(item)
                     break
+        else:
+            self.dirTree.setCurrentItem(self.rootItem)
+            self.showFiles(self.rootItem)
         
 
     def refreshStatus(self, allCommits = False):
