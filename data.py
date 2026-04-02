@@ -169,7 +169,7 @@ class RGitData():
                         self.curRemoteBranch = remotePrim
                         break
 
-
+        self.curRemoteUrl    = self.repo.remotes[self.curRemote].url
         self.primaryBranches = [localPrim, remotePrim]
 
         t0 = time.time()

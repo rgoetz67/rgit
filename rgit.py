@@ -135,6 +135,7 @@ class RGitVersions(QMainWindow):
         baseStyle += "QListView::item:selected {   background-color: #0088FF;}\n"
         baseStyle += "QComboBox  { font-size:14px}"
         baseStyle += "QMenu  { font-size:14px}"
+        baseStyle += "QLabel { font-size:14px}"
         baseStyle += "QHeaderView::section  { font-size:14px; font-weight:bold; text-align:center}"
         self.setStyleSheet(baseStyle)
 
@@ -173,6 +174,7 @@ class RGitVersions(QMainWindow):
                                            self.refreshTrees, "Refresh"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
+        self.infos = self.infoFrameFrame()
 
         self.branchSelect = QComboBox()
         self.branchSelect.currentTextChanged.connect(self.switchBranch)
@@ -209,12 +211,13 @@ class RGitVersions(QMainWindow):
                                  ["Other Files", ["."]]])
 
         self.gbox.addWidget(self.tools,         1, 1, 1, 2)
-        self.gbox.addWidget(self.branchSelect,  2, 1, 1, 1)
-        self.gbox.addWidget(self.dirTree,       3, 1, 2, 1)
-        self.gbox.addWidget(self.fileTree,      2, 2, 2, 4)
-        self.gbox.addWidget(self.showLocal,     4, 3, 1, 1)
-        self.gbox.addWidget(self.lFileType,     4, 4, 1, 1)
-        self.gbox.addWidget(self.fileTypes,     4, 5, 1, 1)
+        self.gbox.addWidget(self.infos,         2, 1, 1, 2)
+        self.gbox.addWidget(self.branchSelect,  3, 1, 1, 1)
+        self.gbox.addWidget(self.dirTree,       4, 1, 2, 1)
+        self.gbox.addWidget(self.fileTree,      3, 2, 2, 4)
+        self.gbox.addWidget(self.showLocal,     5, 3, 1, 1)
+        self.gbox.addWidget(self.lFileType,     5, 4, 1, 1)
+        self.gbox.addWidget(self.fileTypes,     5, 5, 1, 1)
 
         self.gbox.setColumnStretch(1,1)
         self.gbox.setColumnStretch(2,4)
@@ -223,8 +226,9 @@ class RGitVersions(QMainWindow):
         self.gbox.setColumnStretch(5,0)
         self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,0)
-        self.gbox.setRowStretch(3,1)
-        self.gbox.setRowStretch(4,0)
+        self.gbox.setRowStretch(3,0)
+        self.gbox.setRowStretch(4,1)
+        self.gbox.setRowStretch(5,0)
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
         self.fillFileList(self.rootItem)
@@ -303,6 +307,27 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.tbox)
         return f
 
+    def infoFrameFrame(self):
+        f=QFrame()
+        self.ibox =QHBoxLayout()
+        f.setLayout(self.ibox)
+
+
+        self.infoCurBranch  = QLabel("Current branch = ")
+        self.infoRemoteRepo = QLabel("Remote repo branch = ")
+        self.infoRemoteURL  = QLabel(" @  ")
+        self.infoCurBranch.setStyleSheet("QLabel { font-size:14px; font-weight:bold; margin-right:3em}")
+        self.infoRemoteRepo.setStyleSheet("QLabel { font-size:14px; font-weight:bold;}")
+        self.infoRemoteURL.setStyleSheet("QLabel { font-size:14px; font-weight:bold; }")
+        self.infoCurBranch.setMinimumWidth(200)
+        self.infoRemoteRepo.setMinimumWidth(240)
+        self.ibox.addWidget(self.infoCurBranch, 0)
+        self.ibox.addWidget(self.infoRemoteRepo, 0)
+        self.ibox.addWidget(self.infoRemoteURL, 0)
+        self.ibox.addWidget(QLabel(" "), 1)
+        return f
+        
+
     def addToolButton(self, text, iconFile, func, tooltip):
         toolButton = QToolButton()
         toolButton.setMinimumHeight(64)
@@ -341,9 +366,12 @@ class RGitVersions(QMainWindow):
             self.fileTree.resizeColumnToContents(c)
 
 
-
+        
 
     def fill(self, branch=None):
+        self.infoCurBranch.setText("Current branch = "+self.rgd.curBranch)
+        self.infoRemoteRepo.setText("Remote repo branch = "+self.rgd.curRemoteBranch)
+        self.infoRemoteURL.setText("  @    " + self.rgd.curRemoteUrl)
         self.dirItems = []
         self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
         status = self.rgd.getDirStatus(branch,  ".")
