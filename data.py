@@ -382,21 +382,6 @@ class RGitData():
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
             
 
-#     def postProcess2(self, branch):
-#         #FIXME add this to loadCaches
-#         if branch not in self.commitsByBlob:
-#             self.commitsByBlob[branch] = {}
-#         for path in self.repoFiles:
-#             if path not in self.commitsByBlob[branch] :
-#                 if path == "./justfile":
-#                     print(">>>>>> postProcess2: new:", branch, ";", path)
-#                 self.commitsByBlob[branch][path] = defaultdict(list)
-#             for commitId, commitTime, blobId, path in self.repoFiles[path]["commits"]:
-#                 self.newFilesInCommit[commitId].add((blobId, path))
-#                 if path == "./justfile":
-#                     print(">>>>>> postProcess2: add:", branch, ";", path, ";", blobId, "::", commitId)
-#                 self.commitsByBlob[branch][path][blobId].append((commitId, commitTime))
-
 
 
     def updateLocal(self, stopCommitId, indexOnly=False):
@@ -935,3 +920,21 @@ class RGitData():
             self.repo.index.remove(f)
         self.repo.index.write()
         self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
+
+
+    def restoreFile(self, f):
+        if f[-1] in ["/","\\"]:
+            # FIXME message
+            return 
+        fname = f
+        if f[:2] == "./":
+            fname = f[2:]
+            
+        self.repo.index.remove(fname)
+        blob = self.repo.revparse_single('HEAD').tree[f]
+        self.repo.index.add(pygit2.IndexEntry(f, blob.id, blob.filemode))
+        with open(f, "wb") as out:
+            out.write(blob.data)
+        self.repo.index.write()
+        self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
+

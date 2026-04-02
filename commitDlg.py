@@ -58,6 +58,8 @@ class CommitDialog(QFrame):
         self.filesList.setMinimumSize(480,320)
         self.filesList.setColumnCount(3)
         self.filesList.setHeaderLabels(["FileName", "Status", "", ""])
+        self.filesList.setSortingEnabled(True)
+
 
         self.lMessage  = QLabel("Commit Message:")
         self.message   = QPlainTextEdit()

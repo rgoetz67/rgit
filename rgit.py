@@ -183,6 +183,7 @@ class RGitVersions(QMainWindow):
         self.fileTree.setColumnCount(8)
         self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags"])
         self.fileTree.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.fileTree.setSortingEnabled(True)
         self.dirTree.setHeaderLabels(["Directory","Status"])
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
         self.dirTree.addTopLevelItem(self.rootItem)
@@ -257,8 +258,9 @@ class RGitVersions(QMainWindow):
                             
                             "commit"  : self.menu["modified"].addAction("Commit && Push"),
                             "commitL" : self.menu["modified"].addAction("Commit Locally"),
-                            "revert"  : self.menu["modified"].addAction("Revert local changes"),
-                            "restore" : self.menu["modified"].addAction("Restore from Origin"),
+#                             "revert"  : self.menu["modified"].addAction("Revert local changes"),
+#                             "restore" : self.menu["modified"].addAction("Restore from Origin"),
+                            "restore" : self.menu["modified"].addAction("Restore from Local"),
                             "remove"  : self.menu["modified"].addAction("Remove from Repo"),
                             "show"    : self.menu["modified"].addAction("Show Content"),
                             "move"    : self.menu["modified"].addAction("Move File"),
@@ -276,8 +278,8 @@ class RGitVersions(QMainWindow):
         self.menuActions["showN"].triggered.connect(self.showFileContent)
         
         self.menuActions["remove"].triggered.connect(self.doDeleteFile)
-        self.menuActions["revert"].triggered.connect(self.doDummy)
-        self.menuActions["restore"].triggered.connect(self.doDummy)
+    #    self.menuActions["revert"].triggered.connect(self.doDummy)
+        self.menuActions["restore"].triggered.connect(self.doRestoreFile)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
         self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
         self.menuActions["show"].triggered.connect(self.showFileContent)
@@ -581,6 +583,12 @@ class RGitVersions(QMainWindow):
         print("delete  ", self.curContextItem.text(0))
         f = self.curContextItem.text(0)
         self.rgd.deleteFile(f)
+        self.refreshTrees()
+
+    def doRestoreFile(self):
+        print("restore  ", self.curContextItem.text(0))
+        f = self.curContextItem.text(0)
+        self.rgd.restoreFile(f)
         self.refreshTrees()
 
 
