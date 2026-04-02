@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
 
 
-
+import time
 import datetime
 
 from PySide6.QtWidgets import *
@@ -169,7 +169,7 @@ class CommitDialog(QFrame):
                 print("diff prev:", f)
                 e   = self.rgd.branchFiles[self.branch][f]
                 eid = e["id"]
-                commitId = self.rgd.getCommitOfBlob(self.branch, f, eid)
+                commitId = self.rgd.getCommitOfBlob(eid, lastBefore=time.time())
                 commit   = self.rgd.repo.get(commitId)
                 prevBlobId = self.rgd.previousCommit(self.branch, f,
                                                      str(commit.id), commit.commit_time)

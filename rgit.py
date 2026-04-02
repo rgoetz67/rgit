@@ -425,7 +425,7 @@ class RGitVersions(QMainWindow):
 
                 branches = self.rgd.getBranchesForPath(f)
 
-                commitId = self.rgd.getCommitOfBlob(branch, f, eid)
+                commitId = self.rgd.getCommitOfBlob(eid, lastBefore=time.time())
                 if commitId is not None:
                     commit   = self.rgd.repo.get(commitId)
                     cid  = str(commit.id)
@@ -706,7 +706,7 @@ class RGitVersions(QMainWindow):
             filePath = sel[0].data(0, Qt.UserRole)[0]
             branch   = sel[0].data(0, Qt.UserRole)[1]
             entryId  = sel[0].data(0, Qt.UserRole)[2]
-            commitId = self.rgd.getCommitOfBlob(branch, filePath, entryId)
+            commitId = self.rgd.getCommitOfBlob(entryId, lastBefore=time.time())
             print ("BLAME : ", branch, entryId, commitId)
             print ("BLAME : ", filePath)
             self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
