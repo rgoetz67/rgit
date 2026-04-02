@@ -127,7 +127,16 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.gbox)
 
         progPath = os.path.dirname(__file__)
-        
+
+        baseStyle = "QTreeWidget {font-size:14px;border: 1px solid black}\n"
+        baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white}\n"
+        baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
+        baseStyle += "QTreeView::item:hover {background-color: #CCf8ff; color:#000000}\n"
+        baseStyle += "QListView::item:selected {   background-color: #0088FF;}\n"
+        baseStyle += "QComboBox  { font-size:14px}"
+        baseStyle += "QHeaderView::section  { font-size:14px; font-weight:bold; text-align:center}"
+        self.setStyleSheet(baseStyle)
+
 
         self.tools = self.toolFrame()
         self.toolBtn= {
