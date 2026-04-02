@@ -149,7 +149,7 @@ class RGitVersions(QMainWindow):
             "diffHead": self.addToolButton("Diff Head",  progPath+"/icons/diffRemote.png",
                                            self.diffWithHead, "Diff remote changes"),
             "revert" :  self.addToolButton("Revert",     progPath+"/icons/revert.png",
-                                           self.doRevert, "Revert local changes"),
+                                           self.doRestore, "Revert local changes"),
             "blame"  :  self.addToolButton("Blame",      progPath+"/icons/blame.png",
                                            self.showBlame, "Blame"),
             "commitL":  self.addToolButton("Commit Locally", progPath+"/icons/commitLocal.png",
@@ -246,7 +246,7 @@ class RGitVersions(QMainWindow):
         QShortcut(QKeySequence("Ctrl+l"), self.fileTree, self.showHistory)
         QShortcut(QKeySequence("Ctrl+b"), self.fileTree, self.showBlame)
         QShortcut(QKeySequence("Ctrl+c"), self.fileTree, self.doCommitAndPush)
-        QShortcut(QKeySequence("Ctrl+r"), self.fileTree, self.doRevert)
+        QShortcut(QKeySequence("Ctrl+r"), self.fileTree, self.doRestore)
         QShortcut(QKeySequence("Ctrl+d"), self.fileTree, self.diffWithPrev)
         QShortcut(QKeySequence("Ctrl+Shift+d"),  self.fileTree, self.diffWithHead)
         # FIXME contxt menu
@@ -617,9 +617,10 @@ class RGitVersions(QMainWindow):
         self.rgd.deleteFile(f)
         self.refreshTrees()
 
-    def doRestoreFile(self):
-        print("restore  ", self.curContextItem.text(0))
-        f = self.curContextItem.text(0)
+    def doRestoreFile(self, f = None):
+        if f is None:
+            print("restore  ", self.curContextItem.text(0))
+            f = self.curContextItem.text(0)
         self.rgd.restoreFile(f)
         self.refreshTrees()
 
@@ -721,13 +722,15 @@ class RGitVersions(QMainWindow):
 
 
 
-    def doRevert(self):
+    def doRestore(self):
         sel = self.fileTree.selectedItems()
+        files = []
         for i,e in enumerate(sel):
-            if e == 0:
-                print("Revert  ",e.data(0, Qt.UserRole)[0])
-            else:
-                print("        ",e.data(0, Qt.UserRole)[0])
+            f = e.data(0, Qt.UserRole)[0]
+            if self.rgd.isModified(f):
+                files.append(f)
+        for f in files:
+            self.doRestoreFile(f)
 
 
     def diffWithPrev(self):
