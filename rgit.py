@@ -134,6 +134,7 @@ class RGitVersions(QMainWindow):
         baseStyle += "QTreeView::item:hover {background-color: #CCf8ff; color:#000000}\n"
         baseStyle += "QListView::item:selected {   background-color: #0088FF;}\n"
         baseStyle += "QComboBox  { font-size:14px}"
+        baseStyle += "QMenu  { font-size:14px}"
         baseStyle += "QHeaderView::section  { font-size:14px; font-weight:bold; text-align:center}"
         self.setStyleSheet(baseStyle)
 
@@ -510,7 +511,7 @@ class RGitVersions(QMainWindow):
 
     def refreshStatus(self, allCommits = False):
         t0 =time.time()
-        print("  refreshStatus  ")
+        # print("  refreshStatus  ")
         # FIXME tree like dir state update
         p = self.dirStatusRefreshPointer
         if not allCommits:
@@ -549,8 +550,8 @@ class RGitVersions(QMainWindow):
                 item.setText(1, status)
                 self.colorizeTreeItem(item, status)
                 self.statusCache[f] = status
-        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0),
-              self.dirStatusRefreshPointer, len(self.sortedDirItems) )
+
+#        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0))
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
