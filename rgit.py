@@ -259,12 +259,15 @@ class RGitVersions(QMainWindow):
                             
                             "commit"  : self.menu["modified"].addAction("Commit && Push"),
                             "commitL" : self.menu["modified"].addAction("Commit Locally"),
+                            "sep1"    : self.menu["modified"].addSeparator(),
 #                             "revert"  : self.menu["modified"].addAction("Revert local changes"),
 #                             "restore" : self.menu["modified"].addAction("Restore from Origin"),
                             "restore" : self.menu["modified"].addAction("Restore from Local"),
+                            "sep1"    : self.menu["modified"].addSeparator(),
                             "remove"  : self.menu["modified"].addAction("Remove from Repo"),
-                            "show"    : self.menu["modified"].addAction("Show Content"),
                             "move"    : self.menu["modified"].addAction("Move File"),
+                            "sep1"    : self.menu["modified"].addSeparator(),
+                            "show"    : self.menu["modified"].addAction("Show Content"),
                             
                             "removeC" : self.menu["commited"].addAction("Remove from Repo"),
 #                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
