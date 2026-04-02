@@ -20,8 +20,8 @@ if __name__ == '__main__':
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
 
-
-
+import json
+import pygit2
 import datetime
 
 from PySide6.QtWidgets import *
@@ -181,6 +181,156 @@ class BlameDisplay(QFrame):
         else:
             self.message.hide()
 
+
+
+    def close(self):
+        if self.embedded:
+            self.hide()
+        else:
+            super().close()
+
+            
+    def quit(self):
+        self.close()
+        self.pwin.close()
+
+
+class PythonCodeHighligher(QSyntaxHighlighter):
+    def __init__(self, doc):
+        super().__init__(doc)
+
+        self.rules = {}
+        self.fmt = {}
+        self.ruleSets = {}
+        rf = os.path.dirname(__file__)+"/syntaxRules.json"
+        print(":::", rf, os.path.exists(rf), __file__)
+        if os.path.exists(rf):
+            with open(rf) as inp:
+                self.ruleSets =json.load(inp)
+
+        self.bf = QTextCharFormat()
+        self.bf.setForeground(Qt.red)
+        self.bf.setFontWeight(QFont.Bold)
+        
+#         self.rules = { "self": QRegularExpression("self"),
+#                   "def": QRegularExpression("def .*?\("),
+#                   "com": QRegularExpression("#.*"),
+#                   }
+#         self.fmt   = { k : QTextCharFormat()  for k in self.rules}
+#         self.fmt["self"].setForeground(Qt.darkBlue)
+#         self.fmt["self"].setFontWeight(QFont.Bold)
+#         self.fmt["def"].setForeground(Qt.darkRed)
+#         self.fmt["def"].setFontWeight(QFont.Bold)
+#         self.fmt["def"].setForeground(Qt.green)
+#         self.fmt["def"].setFontWeight(QFont.Bold)
+
+    def activate(self, ext):
+        self.rules = {}
+        self.fmt = {}
+        if ext in self.ruleSets:
+            for i,rule in enumerate(self.ruleSets[ext]):
+                self.rules[i] = QRegularExpression(rule["rex"])
+                self.fmt[i] = QTextCharFormat()
+                if "color" in rule:
+                    print("set fg", rule["color"])
+                    self.fmt[i].setForeground(QBrush(QColor(rule["color"])))
+                if "bg" in rule:
+                    self.fmt[i].setForeground(QColor(rule["bg"]))
+                if "weight" in rule:
+                    if rule["weight"] == "bold":
+                        self.fmt[i].setFontWeight(QFont.Bold)
+                if "italic" in rule:
+                        self.fmt[i].setFontItalic(rule["italic"])
+        print(" %d syntax rtules activates", len(self.rules))
+        for i in self.rules:
+            print("\t", i, self.rules[i].pattern(), "\t\t",
+                  self.fmt[i].foreground().color().name(),
+                  self.fmt[i].background() .color().name(),
+                  self.fmt[i].fontWeight(),
+                  self.fmt[i].fontItalic() 
+                  )
+                        
+    def highlightBlock(self, txt):
+        for key in self.rules:
+            matchIterator = self.rules[key].globalMatch(txt)
+            while matchIterator.hasNext():
+                match = matchIterator.next()
+                self.setFormat(match.capturedStart(), match.capturedLength(), self.fmt[key])
+
+class CodeDisplay(QFrame):
+
+    def __init__(self, pwin, rgd, path,  blobId , embedded=False):
+        super().__init__()
+        self.pwin     = pwin
+        self.rgd      = rgd
+        self.path     = path
+        self.embedded = embedded
+        self.initUI()
+            
+        self.fill( blobId)
+        self.show()
+
+
+    def initUI(self):
+        self.gbox = QGridLayout()
+        self.setLayout(self.gbox)
+
+        self.codeDisplay  = QTextEdit()
+        self.codeDisplay.setMinimumSize(920,480)
+        font = QFont("Liberation Mono",12)
+        self.codeDisplay.setCurrentFont(font)
+        self.highlighter = PythonCodeHighligher(self.codeDisplay.document())
+        self.highlighter.activate(self.path.split(".")[-1])
+
+
+
+        self.buttons   =self.buttonFrame()
+
+        self.gbox.addWidget(self.codeDisplay,  1, 1, 1, 4)
+        self.gbox.addWidget(self.buttons,      2, 1, 1, 4)
+
+        self.gbox.setColumnStretch(1,0)
+        self.gbox.setColumnStretch(2,1)
+        self.gbox.setColumnStretch(3,0)
+        self.gbox.setColumnStretch(4,0)
+        self.gbox.setRowStretch(1,1)
+        self.gbox.setRowStretch(2,0)
+        self.gbox.setColumnMinimumWidth (3, 480)
+        QShortcut(QKeySequence("Escape"),  self, self.close)
+        QShortcut(QKeySequence("Alt+q"),  self, self.quit)
+        self.setMinimumWidth(920)
+
+
+    def buttonFrame(self):
+        f = QFrame()
+        self.hbox = QHBoxLayout()
+        f.setLayout(self.hbox)
+
+        if self.embedded:
+            self.closeBtn = QPushButton("Hide")
+        else:
+            self.closeBtn = QPushButton("Close")
+        self.closeBtn.clicked.connect(self.close)
+        self.hbox.addWidget(QLabel(""), 10)
+        self.hbox.addWidget(self.closeBtn, 0, Qt.AlignRight)
+        return f
+
+
+
+
+
+    def fill(self, blobId):
+        if blobId is None:
+            return False
+
+        blob = self.rgd.repo.get(blobId)
+        if not isinstance(blob, pygit2.Blob):
+            return
+        if blob.is_binary:
+            return False
+        code = blob.data.decode()
+        self.codeDisplay.setPlainText(code)
+        self.codeDisplay.setReadOnly(True)
 
 
     def close(self):

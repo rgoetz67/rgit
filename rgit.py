@@ -52,7 +52,7 @@ from PySide6.QtCore    import *
 from data import RGitData
 from history import HistoryView
 from commitDlg import CommitDialog
-from blame     import BlameDisplay
+from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
 import pygit2
@@ -264,19 +264,19 @@ class RGitVersions(QMainWindow):
                             }
 
         self.menuActions["add"].triggered.connect(self.doAddFile)
-        self.menuActions["showN"].triggered.connect(self.doDummy)
+        self.menuActions["showN"].triggered.connect(self.showFileContent)
         
         self.menuActions["remove"].triggered.connect(self.doDeleteFile)
         self.menuActions["revert"].triggered.connect(self.doDummy)
         self.menuActions["restore"].triggered.connect(self.doDummy)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
         self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
-        self.menuActions["show"].triggered.connect(self.doDummy)
+        self.menuActions["show"].triggered.connect(self.showFileContent)
         self.menuActions["move"].triggered.connect(self.doDummy)
 
         self.menuActions["removeC"].triggered.connect(self.doDeleteFile)
 #        self.menuActions["restoreC"].triggered.connect(self.doDummy)
-        self.menuActions["showC"].triggered.connect(self.doDummy)
+        self.menuActions["showC"].triggered.connect(self.showFileContent)
         self.menuActions["moveC"].triggered.connect(self.doDummy)
 
         self.menuActions["update"].triggered.connect(self.doDummy)
@@ -414,10 +414,10 @@ class RGitVersions(QMainWindow):
                 entry = self.rgd.repo.get(eid)
 
                 if len(e["files"])>0:
-                    fname = os.path.basename(f) +"/"
+                    fname  = os.path.basename(f) +"/"
                     status = self.rgd.getDirStatus(branch, f)
                     self.statusCache[f] = status
-                    obj = self.rgd.repo.get(e["id"])
+                    obj    = self.rgd.repo.get(e["id"])
 
                 else:
                     fname = os.path.basename(f)
@@ -728,7 +728,15 @@ class RGitVersions(QMainWindow):
             self.histDialog = HistoryView(self)
             self.histDialog.fill(self.rgd, filePath, self.curBranch)
             self.histDialog.show()
+
+
+    def showFileContent(self):
+        filePath = self.curContextItem.text(0)
+        if not os.path.isdir(filePath):
+            blobId   = self.curContextItem.data(0, Qt.UserRole)[2]
+            self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
         
+
     
     def doDummy(self):
         print("DUMMY ACTION")
