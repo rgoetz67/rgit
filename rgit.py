@@ -148,7 +148,7 @@ class RGitVersions(QMainWindow):
                                            self.diffWithPrev, "Diff local changes"),
             "diffHead": self.addToolButton("Diff Head",  progPath+"/icons/diffRemote.png",
                                            self.diffWithHead, "Diff remote changes"),
-            "revert" :  self.addToolButton("Revert",     progPath+"/icons/revert.png",
+            "revert" :  self.addToolButton("Retore",     progPath+"/icons/revert.png",
                                            self.doRestore, "Revert local changes"),
             "blame"  :  self.addToolButton("Blame",      progPath+"/icons/blame.png",
                                            self.showBlame, "Blame"),
