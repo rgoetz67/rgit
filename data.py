@@ -354,9 +354,15 @@ class RGitData():
 
 
     def updateLocal(self, stopCommitId):
-        stopCommitId = copy.copy(self.currentCommit[branch])
+        stopCommitId = copy.copy(self.currentCommit[self.curBranch])
         self.getBranchFiles(self.curBranch)
         self.collectCommits(self.curBranch, stopCommitId=stopCommitId)
+        self.postProcess()
+        
+    def updateRemote(self, stopCommitId):
+        stopCommitId = copy.copy(self.currentCommit[curRemoteBranch])
+        self.getBranchFiles(self.curRemoteBranch)
+        self.collectCommits(self.curRemoteBranch, stopCommitId=stopCommitId)
         self.postProcess()
         
 
@@ -833,3 +839,4 @@ class RGitData():
                     self.repo.state_cleanup()
                 else:
                     raise AssertionError('Unknown merge analysis result')
+        self.updateLocal()

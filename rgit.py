@@ -493,29 +493,39 @@ class RGitVersions(QMainWindow):
                     break
         
 
-    def refreshStatus(self):
+    def refreshStatus(self, allCommits = False):
         t0 =time.time()
         print("  refreshStatus  ")
         # FIXME tree like dir state update
-        self.rgd. resetDirStatusCache()
-        dirItemList =  list(sorted(self.dirItems + [(self.rootItem, 0)], key=lambda x: -x[1]))
         p = self.dirStatusRefreshPointer
-        for item, lvl in self.sortedDirItems[ p:p+20]:
+        if not allCommits:
+            commits = self.sortedDirItems[ p:p+20]
+        else:
+            commits = self.sortedDirItems
+            
+        for item, lvl in commits:
             _, f = item.data(0, Qt.UserRole)
             status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False, useDirStatusCache = True)
             if status != self.statusCache.get(f, ""):
                 item.setText(1, status)
                 self.colorizeTreeItem(item, status)
                 self.statusCache[f] = status
-        self.dirStatusRefreshPointer +=20
-        if self.dirStatusRefreshPointer > len(self.sortedDirItems):
+        if not allCommits:
+            self.dirStatusRefreshPointer +=20
+            if self.dirStatusRefreshPointer > len(self.sortedDirItems):
+                self.dirStatusRefreshPointer = 0
+                self.rgd.resetDirStatusCache()
+
+        else:
             self.dirStatusRefreshPointer = 0
+            self.rgd.resetDirStatusCache()
+            
         t1 =time.time()
         for item in self.fileItems:
             f, branch, eid = item.data(0, Qt.UserRole)
             if f in self.rgd.branchFiles[branch]:
                 if len(self.rgd.branchFiles[branch][f]["files"])>0:
-                    status = self.rgd.getDirStatus(branch, f, verbose=False)
+                    status = self.rgd.getDirStatus(branch, f, verbose=False, useDirStatusCache = True)
                 else:
                     status = self.rgd.getFileStatus(eid, f)
             else:
@@ -589,6 +599,8 @@ class RGitVersions(QMainWindow):
     
     def doPush(self):
         self.rgd.push()
+        self.refreshTrees()
+        
     
     def doCommitAndPush(self):
         files = self.__getCommitFiles()
@@ -642,6 +654,7 @@ class RGitVersions(QMainWindow):
     def __doCommit(self, files, push=True):
         self.commitDlg = CommitDialog(self, self.rgd, self.curBranch, files, push=push)
         self.commitDlg.commitExecuted.connect(self.refreshTrees)
+        self.refreshStatus(all=True)
 
 
 
