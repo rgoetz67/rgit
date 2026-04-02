@@ -79,6 +79,7 @@ class RGitVersions(QMainWindow):
         self.statusColor = {"CURRENT"       : "#FFFFFF",
                             "MODIFIED"      : "#FF8888",
                             "ADDED"         : "#FFBB88",
+                            "DELETED"       : "#EE7777",
                             "Remote Update" : "#AAFFAA",
                             "CONFLICT"      : "#FFCC88",
                             "Not Commited"  : "#CC88FF",
@@ -89,6 +90,7 @@ class RGitVersions(QMainWindow):
                             "No Status"     : "#EEDDDD",
                             "MODIFIED ++"   : "#FF4444",
                             "ADDED ++"      : "#FFCC44",
+                            "DELETED ++"    : "#DD4444",
                             "Remote Update ++" : "#AAFF66",
                             "CONFLICT ++ "     : "#FFDD44",
                             "Not Commited ++"  : "#CC88FF",
@@ -252,7 +254,7 @@ class RGitVersions(QMainWindow):
                             "move"    : self.menu["modified"].addAction("Move File"),
                             
                             "removeC" : self.menu["commited"].addAction("Remove from Repo"),
-                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
+#                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
                             "showC"   : self.menu["commited"].addAction("Show Content"),
                             "moveC"   : self.menu["commited"].addAction("Move File"),
 
@@ -263,7 +265,7 @@ class RGitVersions(QMainWindow):
         self.menuActions["add"].triggered.connect(self.doAddFile)
         self.menuActions["showN"].triggered.connect(self.doDummy)
         
-        self.menuActions["remove"].triggered.connect(self.doDummy)
+        self.menuActions["remove"].triggered.connect(self.doDeleteFile)
         self.menuActions["revert"].triggered.connect(self.doDummy)
         self.menuActions["restore"].triggered.connect(self.doDummy)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
@@ -271,8 +273,8 @@ class RGitVersions(QMainWindow):
         self.menuActions["show"].triggered.connect(self.doDummy)
         self.menuActions["move"].triggered.connect(self.doDummy)
 
-        self.menuActions["removeC"].triggered.connect(self.doDummy)
-        self.menuActions["restoreC"].triggered.connect(self.doDummy)
+        self.menuActions["removeC"].triggered.connect(self.doDeleteFile)
+#        self.menuActions["restoreC"].triggered.connect(self.doDummy)
         self.menuActions["showC"].triggered.connect(self.doDummy)
         self.menuActions["moveC"].triggered.connect(self.doDummy)
 
@@ -402,7 +404,7 @@ class RGitVersions(QMainWindow):
         allFiles = files + localFiles
 
 
-        print("::::::::::", branch, "\t", self.rgd.branchFiles[branch].keys())
+        # print("::::::::::", branch, "\t", self.rgd.branchFiles[branch].keys())
         for f in sorted(allFiles):
             print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
             if f in files:
@@ -560,13 +562,16 @@ class RGitVersions(QMainWindow):
     def doAddFile(self):
         print("add  ", self.curContextItem.text(0))
         f = self.curContextItem.text(0)
-        if f[:2] == "./":
-            self.rgd.repo.index.add(f[2:])
-        else:
-            self.rgd.repo.index.add(f)
-        self.rgd.repo.index.write()
+        self.rgd.addFile(f)
         self.refreshTrees()
-            
+
+
+    def doDeleteFile(self):
+        print("delete  ", self.curContextItem.text(0))
+        f = self.curContextItem.text(0)
+        self.rgd.deleteFile(f)
+        self.refreshTrees()
+
 
     def __collectModifiedFiles4Commit(self, branch, path):
         files = []
@@ -654,7 +659,7 @@ class RGitVersions(QMainWindow):
     def __doCommit(self, files, push=True):
         self.commitDlg = CommitDialog(self, self.rgd, self.curBranch, files, push=push)
         self.commitDlg.commitExecuted.connect(self.refreshTrees)
-        self.refreshStatus(all=True)
+        self.refreshStatus(allCommits=True)
 
 
 
@@ -678,7 +683,8 @@ class RGitVersions(QMainWindow):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
             filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
-            self.rgd.doDiff(branch, filePath, None, filePath, entryId) 
+            print(" DIFF ", filePath, entryId)
+            self.rgd.doDiff(branch, filePath, entryId, filePath, None) 
 
     def diffWithHead(self):
         sel = self.fileTree.selectedItems()
@@ -723,6 +729,7 @@ class RGitVersions(QMainWindow):
         
     
     def doDummy(self):
+        print("DUMMY ACTION")
         pass
     
     def closeApp(self):

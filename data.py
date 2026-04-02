@@ -35,6 +35,7 @@ import signal
 import glob
 import datetime
 import json
+import copy
 import subprocess
 from collections import defaultdict
 import pygit2
@@ -92,8 +93,10 @@ class GitCallbacks(pygit2.RemoteCallbacks):
 preferedPrimaryBranchNames = ["trunk", "main", "HEAD", "head", "master"]
 preferedRemotePrefixes     = ["origin", "master"]
 
-statusNameMap = {"WT_MODIFIED" : "MODIFIED",
-                 "INDEX_NEW"   : "ADDED",
+statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
+                 "INDEX_NEW"     : "ADDED",
+                 "INDEX_DELETED" : "DELETED",
+                 "INDEX_DELETED|WT_NEW" : "DELETED",
                  }
                  
 
@@ -125,6 +128,7 @@ class RGitData():
         self.branches["all"] = self.branches["local"] + self.branches["remote"]
         self.repoFiles    = {}
         self.branchFiles  = defaultdict(dict)
+        self.indexFiles   = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
         self.branchPath   = defaultdict(set)
         self.commitsByPath = {}
@@ -136,7 +140,7 @@ class RGitData():
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False}
 
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
+        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "DELETED", "Not Comitted", "CURRENT"]
         self.diffCommand = "tkdiff %1 %2"
 
         self.primaryBranches = []
@@ -194,20 +198,38 @@ class RGitData():
                 nextTree = self.repo.get(entry.id)
                 self.__scanBranchTree(branch, nextTree, path)
 
+    def __scanIndexTree(self, branch, tree, parentPath):
+        files = []
+        for entry in tree:
+            path = parentPath+"/"+entry.name
+            self.indexFiles[branch][parentPath]["files"].append(path)
+            self.indexFiles[branch][path] = {"id":str(entry.id), "name":entry.name, "branch":branch, "files":[]}
+            if entry.filemode == pygit2.GIT_FILEMODE_TREE:
+                nextTree = self.repo.get(entry.id)
+                self.__scanIndexTree(branch, nextTree, path)
+
     
 
     def getBranchFiles(self, branch):
         self.branchFiles[branch] = {"." :{"id":None, "name":"", "branch":branch, "files":[]} }
         if branch in self.branches["local"]:
             local = True
+            self.indexFiles[branch] = {"." :{"id":None, "name":"", "branch":branch, "files":[]} }
             tid = self.repo.index.write_tree()
             tree = self.repo.get(self.repo.index.write_tree())
+            self.__scanIndexTree(branch, tree, ".")
         else:
             local = False
-            tree = self.repo.revparse_single(branch).tree
+        tree = self.repo.revparse_single(branch).tree
         self.__scanBranchTree(branch, tree, ".")
+        if local:
+            # copy over new files from indexFiles to branchFiles
+            for f in self.indexFiles[branch]:
+                if f not in self.branchFiles[branch]:
+                    self.branchFiles[branch][path] = self.indexTree[branch][f]
+                    
         self.currentCommit[branch] = str(self.repo.revparse_single(branch).id)
-
+        print(" !! LAST COMMIT : ", branch, self.currentCommit[branch] )
 
     def __newRepoFile( self, name, isDir=False,  files = None):
         commits = []
@@ -302,6 +324,7 @@ class RGitData():
             self.updated["rf"] = True
         prevTime = commitList[0].commit_time +10
         for commit in commitList:
+            print("   WALK :", commit.id, commit.commit_time)
             if str(commit.id) ==  stopCommitId:
                 break
             # copies = self.detectCopiesInCommit(commit)
@@ -349,15 +372,19 @@ class RGitData():
                 self.commitsByBlob[branch][path] = defaultdict(list)
             for commitId, commitTime, blobId, path in self.repoFiles[path]["commits"]:
                 self.newFilesInCommit[commitId].add((blobId, path))
+                print(">>>>>> postProcess2: add:", branch, ";", path, ";", blobId, "::", commitId)
                 self.commitsByBlob[branch][path][blobId].append((commitId, commitTime))
 
 
 
-    def updateLocal(self, stopCommitId):
+    def updateLocal(self, stopCommitId, indexOnly=False):
         stopCommitId = copy.copy(self.currentCommit[self.curBranch])
         self.getBranchFiles(self.curBranch)
-        self.collectCommits(self.curBranch, stopCommitId=stopCommitId)
-        self.postProcess()
+        if not indexOnly:
+            self.collectCommits(self.curBranch, stopCommitId=stopCommitId)
+            self.postProcess()
+
+
         
     def updateRemote(self, stopCommitId):
         stopCommitId = copy.copy(self.currentCommit[curRemoteBranch])
@@ -541,7 +568,7 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
-        if status in ["WT_MODIFIED", "INDEX_NEW"]:
+        if status in ["WT_MODIFIED", "INDEX_NEW", "INDEX_DELETED|WT_NEW", "INDEX_DELETED"]:
             return True
         return False
     
@@ -557,6 +584,7 @@ class RGitData():
         else:
             status = self.repo.status_file(path).name
         status = statusNameMap.get(status, status)
+        # print(":::::::", path, status)
         
         updateAvailable = False
         if path in self.branchFiles[self.curRemoteBranch]:
@@ -725,6 +753,7 @@ class RGitData():
         if path not in self.commitsByBlob[branch]:
             # maybe a file recently added and not yet commited
             return None
+        print("####### >",  self.commitsByBlob[branch][path])
         commits = self.commitsByBlob[branch][path][blobId]
         if len(commits) == 0:
             print("  NO COMMIT FOR ", branch, path, blobId)
@@ -840,3 +869,27 @@ class RGitData():
                 else:
                     raise AssertionError('Unknown merge analysis result')
         self.updateLocal()
+
+
+    def addFile(self, f):
+        if f[-1] in ["/","\\"]:
+            # FIXME message
+            return
+        if f[:2] == "./":
+            self.repo.index.add(f[2:])
+        else:
+            self.repo.index.add(f)
+        self.repo.index.write()
+        self.updateLocal(None, indexOnly=True)  # stopCommitId is not usaed if indexOnly=True
+
+        
+    def deleteFile(self, f):
+        if f[-1] in ["/","\\"]:
+            # FIXME message
+            return
+        if f[:2] == "./":
+            self.repo.index.remove(f[2:])
+        else:
+            self.repo.index.remove(f)
+        self.repo.index.write()
+        self.updateLocal(None, indexOnly=True)  # stopCommitId is not usaed if indexOnly=True
