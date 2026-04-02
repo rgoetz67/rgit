@@ -138,13 +138,15 @@ class CommitDialog(QFrame):
 
 
     def doCommit(self):
-        files = [ f for f in self.fileItems  if self.fileItems[f].checkState(0) == Qt.Checked]
+        files = []
+        for f in self.fileItems:
+            if self.fileItems[f].checkState(0) == Qt.Checked:
+                files.append((f, self.fileItems[f].text(1)))
         if self.pushToRem.isChecked():
             self.comMsg.setText("Commit & Push in progress")
         else:
             self.comMsg.setText("Commit in progress")
         QApplication.processEvents()
-#        self.comMsg.repaint()
         
         self.lFiles.setEnabled(False)  
         self.filesList.setEnabled(False)  

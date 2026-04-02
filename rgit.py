@@ -84,6 +84,7 @@ class RGitVersions(QMainWindow):
                             "CONFLICT"      : "#FFCC88",
                             "Not Commited"  : "#CC88FF",
                             "not versioned" : "#F4F0F0",
+                            "removed from Repo" : "#F8ECEC",
 #                             "" : "",
 #                             "" : "",
                             "Unknown"       : "#FF88FF",

@@ -97,6 +97,7 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
                  "INDEX_NEW"     : "ADDED",
                  "INDEX_DELETED" : "DELETED",
                  "INDEX_DELETED|WT_NEW" : "DELETED",
+                 "WT_NEW"        : "removed from Repo",
                  }
                  
 
@@ -140,7 +141,7 @@ class RGitData():
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False}
 
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "DELETED", "Not Comitted", "CURRENT"]
+        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
         self.diffCommand = "tkdiff %1 %2"
 
         self.primaryBranches = []
@@ -801,11 +802,17 @@ class RGitData():
         parents = [self.repo.head.target]
                     
         index     = self.repo.index
-        for f in files:
+        for f, status in files:
+            fname = f
             if f[:2] == "./":
-                index.add(f[2:])
-            else:
-                index.add(f)
+                fname = f[2:]
+            if status in ["MODIFIED", "ADDED"]:
+                index.add(fname)
+            elif status in ["DELETED"]:
+                try:
+                    index.remove(fname)
+                except:
+                    pass
         index.write()
         user = self.repo.default_signature
         tree      = index.write_tree()
