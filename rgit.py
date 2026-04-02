@@ -101,6 +101,7 @@ class RGitVersions(QMainWindow):
         self.dirItems    = []
         self.fileItems   = []
         self.statusCache = {}
+        self.dirStatusRefreshPointer = 0
         self.updateIndex = 0
         self.initUI()
         self.initMenus()
@@ -342,7 +343,8 @@ class RGitVersions(QMainWindow):
                     self.colorizeTreeItem(item, status)
                     self.__fill(branch, e,  f, item, 2)
                     self.dirItems.append((item,1))
-        
+        self.sortedDirItems = list(sorted(self.dirItems + [(self.rootItem, 0)], key=lambda x: -x[1]))
+        self.dirStatusRefreshPointer = 0
         QTimer.singleShot(500, self.resizeDirTree)
 
 
@@ -497,13 +499,17 @@ class RGitVersions(QMainWindow):
         # FIXME tree like dir state update
         self.rgd. resetDirStatusCache()
         dirItemList =  list(sorted(self.dirItems + [(self.rootItem, 0)], key=lambda x: -x[1]))
-        for item, lvl in dirItemList:
+        p = self.dirStatusRefreshPointer
+        for item, lvl in self.sortedDirItems[ p:p+20]:
             _, f = item.data(0, Qt.UserRole)
             status = self.rgd.getDirStatus(self.curBranch,  f, verbose=False, useDirStatusCache = True)
             if status != self.statusCache.get(f, ""):
                 item.setText(1, status)
                 self.colorizeTreeItem(item, status)
                 self.statusCache[f] = status
+        self.dirStatusRefreshPointer +=20
+        if self.dirStatusRefreshPointer > len(self.sortedDirItems):
+            self.dirStatusRefreshPointer = 0
         t1 =time.time()
         for item in self.fileItems:
             f, branch, eid = item.data(0, Qt.UserRole)
@@ -518,7 +524,8 @@ class RGitVersions(QMainWindow):
                 item.setText(1, status)
                 self.colorizeTreeItem(item, status)
                 self.statusCache[f] = status
-        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0))
+        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0),
+              self.dirStatusRefreshPointer, len(self.sortedDirItems) )
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
