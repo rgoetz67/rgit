@@ -133,6 +133,7 @@ class RGitData():
         self.copies       = {}
         self.tags         = {}
         self.dirStatusCache = {}
+        self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False}
 
         self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
@@ -205,7 +206,7 @@ class RGitData():
             local = False
             tree = self.repo.revparse_single(branch).tree
         self.__scanBranchTree(branch, tree, ".")
-              
+        self.currentCommit[branch] = str(self.repo.revparse_single(branch).id)
 
 
     def __newRepoFile( self, name, isDir=False,  files = None):
@@ -247,11 +248,10 @@ class RGitData():
 #        print("\t\t\t\t\t\t\t\t\t\t\t\t done after %7.2fs" %(time.time()-t0))
         return self.copies
 
+
+
     def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
         repo   = self.repo
-
-                    
-
         for e in tree:
             path = parentPath+"/"+ e.name
             if e.filemode == pygit2.GIT_FILEMODE_TREE:
@@ -267,10 +267,6 @@ class RGitData():
             else:
                 self.branchPath[path].add(branchName)
 
-#             if path not in self.repoFiles[parentPath]["files"]:
-#                 self.repoFiles[parentPath]["files"].append(path)
-#                 self.updated["rf"] = True
-
             if isDir:
                 nextTree = repo.get(e.id)
                 self.collectBlobsFromTree(branchName,nextTree, commit,path)
@@ -279,17 +275,6 @@ class RGitData():
 
             
             self.commitsByPath[branchName][path]. append(com)
-#             if esid not in  self.firstCommitOfBlob[branchName]:
-#                 self.firstCommitOfBlob[branchName][esid] = {}
-#                 self.updated[branchName]= True
-#             if path not in  self.firstCommitOfBlob[branchName][esid]:
-#                 self.firstCommitOfBlob[branchName][esid][path] = com
-#                 self.updated[branchName]= True
-#             else:
-#                 if commit.commit_time < self.firstCommitOfBlob[branchName][esid][path][1]:
-#                     self.firstCommitOfBlob[branchName][esid][path] = com
-#                     self.updated[branchName]= True
-
 
 
 
@@ -301,15 +286,12 @@ class RGitData():
             self.branchPath[path].add(branchName)
 
 
-    def collectCommits(self, branchName):
+    def collectCommits(self, branchName, stopCommitId = None):
         print("collectCommits", branchName)
         self.updated[branchName]= False
         if branchName not in self.allCommitIds:
             self.allCommitIds[branchName] = set()
             self.updated[branchName]= True
-#         if branchName not in self.firstCommitOfBlob:
-#             self.firstCommitOfBlob[branchName] = {}
-#             self.updated[branchName]= True
         self.commitsByPath[branchName]    = defaultdict(list)
             
         repo   = self.repo
@@ -320,6 +302,8 @@ class RGitData():
             self.updated["rf"] = True
         prevTime = commitList[0].commit_time +10
         for commit in commitList:
+            if str(commit.id) ==  stopCommitId:
+                break
             # copies = self.detectCopiesInCommit(commit)
             if commit.id in self.allCommitIds[branchName]:
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
@@ -341,15 +325,6 @@ class RGitData():
             activeCommits.append(commits[-1])
             self.repoFiles[path]["commits"] = list(reversed(activeCommits))
         self.postProcess2(branchName)
-#         for eid in self.firstCommitOfBlob[branchName]:
-#             for path in self.firstCommitOfBlob[branchName][eid]:
-#                 firstCommit = self.firstCommitOfBlob[branchName][eid][path]
-#                 if path not in  self.repoFiles:
-#                     self.repoFiles[path] = self.__newRepoFile(os.path.basename(path), isDir=path[-1]=="/")
-#                     self.updated["rf"] = True
-#                 if firstCommit[1] >0:
-#                     self.repoFiles[path]["commits"].append(firstCommit )
-#                     self.updated["rf"] = True
             
 
     def postProcess(self):
@@ -377,6 +352,13 @@ class RGitData():
                 self.commitsByBlob[branch][path][blobId].append((commitId, commitTime))
 
 
+
+    def updateLocal(self, stopCommitId):
+        stopCommitId = copy.copy(self.currentCommit[branch])
+        self.getBranchFiles(self.curBranch)
+        self.collectCommits(self.curBranch, stopCommitId=stopCommitId)
+        self.postProcess()
+        
 
     def collectTags(self):
         self.tags = {}
