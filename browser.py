@@ -28,6 +28,26 @@ from PySide6.QtPrintSupport import QPrinter
 
 from functions import centerWindow
 
+
+class EmbeddedFileDialog(QFileDialog):
+    def __init__(self, *args, **kwargs):
+        super().__init__( *args, **kwargs)
+
+        gbox = self.layout()
+        for r in range( gbox.rowCount()):
+            for c in range(gbox.columnCount()):
+                item = gbox.itemAtPosition(r,c)
+                idx  = gbox.indexOf(item)
+                pos  = gbox.getItemPosition(idx)
+                if isinstance(item.widget(), QDialogButtonBox):
+                    item.widget().hide()
+                    item2 = gbox.itemAtPosition(r,c-1)
+                    idx  = gbox.indexOf(item2)
+                    pos   = gbox.getItemPosition(idx)
+                    # place it again update the UI
+                    gbox.addWidget(item2.widget(), r, c, pos[2], pos[3])
+
+
 class OpenRepositoryDialog(QFrame):
     openRepository = Signal(str, str)
     def __init__(self, pwin):
@@ -75,6 +95,14 @@ class OpenRepositoryDialog(QFrame):
         self.lbox  = QGridLayout()
         f.setLayout(self.lbox)
 
+
+        self.select = EmbeddedFileDialog(self)
+        self.select.setOption(QFileDialog.DontUseNativeDialog)
+        self.select.setWindowFlags(Qt.Widget)
+        self.select.setFileMode(QFileDialog.Directory)
+        self.select.setAcceptMode(QFileDialog.AcceptOpen)
+        self.lbox.addWidget(self.select, 1,1,1,1)
+        
         return f
 
 
@@ -104,6 +132,10 @@ class OpenRepositoryDialog(QFrame):
         print(self.tab.tabText(self.tab.currentIndex()), self.tab.currentIndex())
         if self.tab.currentIndex() == 2:
             self.openRepository.emit("remote", self.repoUrl.text())
+        elif self.tab.currentIndex() == 1:
+            sel =self.select.selectedFiles()
+            if len(sel)>0:
+                self.openRepository.emit("local",  sel[0])
         self.close()
 
     
