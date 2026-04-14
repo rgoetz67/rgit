@@ -890,7 +890,7 @@ class RGitData():
         user = self.repo.default_signature
         tree      = index.write_tree()
         new_commit = self.repo.create_commit(ref, user, user, message, tree, parents)
-        print(">>>>> NEW COMMIT = ", new_commit, new_commit.id)
+        print(">>>>> NEW COMMIT = ", new_commit)
         if pushToRemote:
             self.push()
         for branch in self.primaryBranches:
