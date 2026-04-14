@@ -28,6 +28,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui     import *
 from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
+from functions import centerWindow
 
 
 colors = [QBrush("#FFDDDD"),

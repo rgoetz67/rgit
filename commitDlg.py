@@ -31,6 +31,7 @@ from PySide6.QtPrintSupport import QPrinter
 
 
 from data import GitCallbacks
+from functions import centerWindow
 
 class CommitDialog(QFrame):
     commitExecuted = Signal()
@@ -48,6 +49,8 @@ class CommitDialog(QFrame):
         self.pushToRem.setChecked(push)
         print("      push = ", push)
         self.show()
+        centerWindow(self, ref=self.pwin)
+
 
     def initUI(self):
         self.gbox = QGridLayout()

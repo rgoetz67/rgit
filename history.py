@@ -39,6 +39,7 @@ from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
 
 from blame     import BlameDisplay
+from functions import centerWindow
 
 
 class CenteredRadioButton(QFrame):
