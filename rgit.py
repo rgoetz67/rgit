@@ -52,6 +52,7 @@ from PySide6.QtCore    import *
 from data import RGitData
 from history import HistoryView
 from commitDlg import CommitDialog
+from browser   import OpenRepositoryDialog
 from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
@@ -99,7 +100,7 @@ class RGitVersions(QMainWindow):
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
         self.curBranch   = "main"
-        self.rgd         = RGitData(self.curBranch)
+        self.rgd         = RGitData(".", self.curBranch)
         self.curBranch   = self.rgd.curBranch
         self.dirItems    = []
         self.fileItems   = []
@@ -142,6 +143,8 @@ class RGitVersions(QMainWindow):
 
         self.tools = self.toolFrame()
         self.toolBtn= {
+            "open":     self.addToolButton("Open",    progPath+"/icons/hist.png",
+                                           self.openRepo, "Open Repository"),
             "history":  self.addToolButton("History",    progPath+"/icons/hist.png",
                                            self.showHistory, "History of selected file"),
             "diff"   :  self.addToolButton("Diff",       progPath+"/icons/diffLocal.png",
@@ -356,6 +359,12 @@ class RGitVersions(QMainWindow):
         
 
 
+    def switchRepo(self, repoType, repoPath):
+        self.rgd         = RGitData(repoPath)
+        self.curBranch   = self.rgd.curBranch
+        self.fill(self.curBranch)
+
+
     def resizeDirTree(self):
         for c in range(2):
             self.dirTree.resizeColumnToContents(c)
@@ -373,6 +382,7 @@ class RGitVersions(QMainWindow):
         self.infoRemoteRepo.setText("Remote repo branch = "+self.rgd.curRemoteBranch)
         self.infoRemoteURL.setText("  @    " + self.rgd.curRemoteUrl)
         self.dirItems = []
+        print("######", branch, self.rgd.branchFiles[branch].keys())
         self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
         status = self.rgd.getDirStatus(branch,  ".")
         self.statusCache["."] = status
@@ -762,6 +772,12 @@ class RGitVersions(QMainWindow):
             print ("BLAME : ", branch, entryId, commitId)
             print ("BLAME : ", filePath)
             self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
+
+
+    def openRepo(self):
+        self.repoDlg = OpenRepositoryDialog(self)
+        self.repoDlg.openRepository.connect(self.switchRepo)
+        
             
     def showHistory(self):
         sel = self.fileTree.selectedItems()
@@ -810,5 +826,5 @@ if __name__ == '__main__':
 
 
     
-    ret = app.exec_()
+    ret = app.exec()
     sys.exit(ret)

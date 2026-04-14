@@ -105,7 +105,7 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
 
 class RGitData():
 
-    def __init__(self, repoPath, curBranch):
+    def __init__(self, repoPath, curBranch=None):
         self.curBranch       = curBranch
         #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
         
@@ -127,7 +127,6 @@ class RGitData():
                 self.repo        = pygit2.Repository(repoPath)
                 self.tmpRepoPath = None
             else:
-                self.cloneTempRepo(repoPath)
                 self.repo        = self.cloneTempRepo(repoPath)
                 
         self.remotes         = list(self.repo.remotes)
@@ -156,10 +155,12 @@ class RGitData():
         if len(self.branches["local"]) == 1:
             localPrim = self.branches["local"][0]
         else:
-            for name in [curBranch] + preferedPrimaryBranchNames:
-                if name in self.branches["local"]:
-                    localPrim = name
-                    break
+            if curBranch is not None and curBranch in self.branches["local"]:
+                localPrim = name
+            else:
+                for name in preferedPrimaryBranchNames:
+                    if name in self.branches["local"]:
+                        break
         self.curBranch = localPrim
 
         remotePrim = ""
@@ -169,7 +170,7 @@ class RGitData():
             self.curRemoteBranch = remotePrim
         else:
             for prefix in preferedRemotePrefixes:
-                for name in ["HEAD", curBranch] + preferedPrimaryBranchNames:
+                for name in ["HEAD", self.curBranch] + preferedPrimaryBranchNames:
                     if prefix + "/" + name in self.branches["remote"]:
                         remotePrim = prefix + "/" + name
                         self.curRemote = prefix
@@ -202,10 +203,11 @@ class RGitData():
      #   repoPath ="ssh://git@git.lemna.lemnatec.de:2222/goetz/LemnaGridNeXt.git"
         localName = re.sub(r".git$","", os.path.basename(repoUrl))
         self.tmpRepoPath = tmpDir + "/" +localName
-        return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=True,
+        print("clone to ", self.tmpRepoPath, os.path.exists(self.tmpRepoPath))
+        return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
                                         callbacks=GitCallbacks(user="git",
-                                                               priv_key=privKeyFile,
-                                                               pub_key=publKeyFile))
+                                                               priv_key = self.privKeyFile,
+                                                               pub_key  = self.publKeyFile))
 
         
 
@@ -691,6 +693,7 @@ class RGitData():
 
 
     def __getDirStatus(self, branch,  path, useDirStatusCache=None):
+        print(":::::__getDirStatus:", branch,  path)
         files = self.branchFiles[branch][path]["files"]
         mergedStatus = {"Not Commited": False,
                         "CURRENT"     : False,
