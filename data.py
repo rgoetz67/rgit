@@ -76,7 +76,7 @@ class GitCallbacks(pygit2.RemoteCallbacks):
 
 
     # self.commitsByPath[path] = [ [commitId, commitTime, blobId], ...]
-    # self.newFilesInCommit[commitId] = [ path, ...]
+    # self._newFilesInCommit[commitId] = [(blobId, path), ...]
     # self.allCommitIds [branch][path] = set( commitId)     -> cached
     # ### self.branchPath[branch] = [path]
     # self.branchPath[path] = [branches]
@@ -139,8 +139,8 @@ class RGitData():
         self.indexFiles   = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
         self.branchPath   = defaultdict(set)
-        self.commitsByPath  = defaultdict( list)
-        self.newFilesInCommit = defaultdict(set)
+        self.commitsByPath    = defaultdict( list)
+        self._newFilesInCommit = defaultdict(set)
         self.commitByBlob = defaultdict(list)
         self.copies       = {}
         self.tags         = {}
@@ -413,7 +413,12 @@ class RGitData():
         for cid in missingCommits:
             commit = self.repo.get(cid)
             print("\t\t refetch ", cid)
-#            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
+            #            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
+            
+        for p in self.repoFiles:
+            for commitId, _cts, blobId, path in self.repoFiles[p]["commits"]:
+                self._newFilesInCommit[commitId].add((blobId, path))
+
         for eid in self.commitByBlob:
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
         if len(missingCommits)>0 and retry ==0:
@@ -745,8 +750,9 @@ class RGitData():
 
 
 
-    def newFilesInCommit(self, branch, commitId):
-        return self.newFilesInCommit[branch][commitId]
+    def newFilesInCommit(self, commitId):
+        return self._newFilesInCommit[commitId]
+    
 #         newFiles = []
 #         for eid in self.firstCommitOfBlob[branch]:
 #             for path,v in self.firstCommitOfBlob[branch][eid].items():
@@ -841,7 +847,7 @@ class RGitData():
 
 
     def getBlobIdInCommit(self, branch, commitId, path):
-        for blobId, p in self.newFilesInCommit[commitId]:
+        for blobId, p in self._newFilesInCommit[commitId]:
             if path == p:
                 return blobId
 
@@ -883,7 +889,8 @@ class RGitData():
         index.write()
         user = self.repo.default_signature
         tree      = index.write_tree()
-        self.repo.create_commit(ref, user, user, message, tree, parents)
+        new_commit = self.repo.create_commit(ref, user, user, message, tree, parents)
+        print(">>>>> NEW COMMIT = ", new_commit, new_commit.id)
         if pushToRemote:
             self.push()
         for branch in self.primaryBranches:
