@@ -348,13 +348,13 @@ class RGitData():
             self.updated["rf"] = True
         prevTime = commitList[0].commit_time +10
         for commit in commitList:
-            # print("   WALK :", commit.id, commit.commit_time)
             if str(commit.id) ==  stopCommitId:
                 break
             # copies = self.detectCopiesInCommit(commit)
             if commit.id in self.allCommitIds[branchName]:
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
             if str(commit.id) not in self.allCommitIds[branchName]:
+                print("   WALK :", commit.id, commit.commit_time)
                 self.allCommitIds[branchName].add(str(commit.id))
                 self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
                 self.updated[branchName]= True
@@ -363,7 +363,7 @@ class RGitData():
 #        self.postProcess2(branchName)
             
 
-    def postProcess(self):
+    def postProcess(self, retry=0):
         # print(" --- postProcess",  self.updated["rf"],  len(self.repoFiles["./justfile"]["commits"]))
         if self.updated["cbp"]:
             for path, commits in self.commitsByPath.items():
@@ -403,8 +403,21 @@ class RGitData():
 #                 if path == "./justfile":
 #                     print("\t postProcess : add ", eid,"::", cid, cts)
                 self.commitByBlob[eid].append([cid, cts])
+        allReferecesCommitIds = set([c[0]    for v in self.commitByBlob.values()   for c in v])
+        print(allReferecesCommitIds)
+        missingCommits = set()
+        for branch in self.allCommitIds:
+            for cid in self.allCommitIds[branch]:
+                if cid not in allReferecesCommitIds:
+                    missingCommits.add(cid)
+        for cid in missingCommits:
+            commit = self.repo.get(cid)
+            print("\t\t refetch ", cid)
+#            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
         for eid in self.commitByBlob:
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
+        if len(missingCommits)>0 and retry ==0:
+            self.postProcess(1)
             
 
 
@@ -497,16 +510,26 @@ class RGitData():
                 print("LOAD RF CACHE")
                 self.repoFiles = json.load(inp)
         if os.path.exists(".rgc/__tags__"):
-            with open(".rgc/__rf__") as inp:
+            with open(".rgc/__tags__") as inp:
                 print("LOAD TAGS CACHE")
                 self.tags = json.load(inp)
-#         if os.path.exists(".rgc/__cbb__"):
-#             with open(".rgc/__rf__") as inp:
-#                 print("LOAD CBB CACHE")
-#                 self.commitByBlob = json.load(inp)
+# #         if os.path.exists(".rgc/__cbb__"):
+# #             with open(".rgc/__rf__") as inp:
+# #                 print("LOAD CBB CACHE")
+# #                 self.commitByBlob = json.load(inp)
+#         for v in self.commitByBlob.values():
+#             print(v)
+#         allReferecesCommitIds = set([v[0]  for v in self.commitByBlob.values()])
+
         for branch in branches:
             self.loadBranchCache(branch)
+#             aci = set()
+#             for cid in self.allCommitIds[branch]:
+#                 if cid in allReferecesCommitIds:
+#                     sci.add(cid)
+#             self.allCommitIds[branch]= aci
             # self.postProcess2(branch)
+            
             
     def loadBranchCache(self, branch):
         if "/" in branch:
@@ -863,6 +886,8 @@ class RGitData():
         self.repo.create_commit(ref, user, user, message, tree, parents)
         if pushToRemote:
             self.push()
+        for branch in self.primaryBranches:
+            self.collectCommits(branch)
         return True
 
 

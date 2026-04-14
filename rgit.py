@@ -330,7 +330,7 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.ibox)
 
 
-        self.infoLocalRepo = QLabel("Local Repository: ")
+        self.infoLocalRepo  = QLabel("Local Repository: ")
         self.infoCurBranch  = QLabel("Current branch = ")
         self.infoRemoteRepo = QLabel("Remote repo branch = ")
         self.infoRemoteURL  = QLabel(" @  ")
