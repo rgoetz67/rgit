@@ -210,7 +210,8 @@ class RGitData():
                                                                pub_key  = self.publKeyFile))
 
         
-
+    def isRemoteOnly(self):
+        return self.tmpRepoPath is not None
 
     def __scanBranchTree(self, branch, tree, parentPath, commitId, commitTime):
         files = []
@@ -693,7 +694,6 @@ class RGitData():
 
 
     def __getDirStatus(self, branch,  path, useDirStatusCache=None):
-        print(":::::__getDirStatus:", branch,  path)
         files = self.branchFiles[branch][path]["files"]
         mergedStatus = {"Not Commited": False,
                         "CURRENT"     : False,

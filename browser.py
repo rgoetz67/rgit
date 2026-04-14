@@ -62,12 +62,15 @@ class OpenRepositoryDialog(QFrame):
         self.tab.addTab(self.bookmarkFrame(),   "Bookmarks")
         self.tab.addTab(self.localRepoFrame(),  "Local Repository")
         self.tab.addTab(self.remoteRepoFrame(), "Remote Repository")
-
+        self.msg = QLabel("")
+        self.msg.hide()
+        self.msg.setStyleSheet("QLabel {font-size:14px; font-weight:bold}")
         self.cancelBtn = QPushButton("Cancel")
         self.openBtn   = QPushButton("Open Repository")
         self.gbox.addWidget( self.tab,       1, 1, 1, 3)
-        self.gbox.addWidget( self.cancelBtn, 2, 1, 1, 1)
-        self.gbox.addWidget( self.openBtn,   2, 3, 1, 1)
+        self.gbox.addWidget( self.msg,       2, 1, 1, 3)
+        self.gbox.addWidget( self.cancelBtn, 3, 1, 1, 1)
+        self.gbox.addWidget( self.openBtn,   3, 3, 1, 1)
         self.gbox.setColumnStretch(1,0)
         self.gbox.setColumnStretch(2,1)
         self.gbox.setColumnStretch(3,0)
@@ -131,6 +134,9 @@ class OpenRepositoryDialog(QFrame):
     def openRepo(self):
         print(self.tab.tabText(self.tab.currentIndex()), self.tab.currentIndex())
         if self.tab.currentIndex() == 2:
+            self.msg.setText("Retrieve remote repository data")
+            self.msg.show()
+            QApplication.processEvents()
             self.openRepository.emit("remote", self.repoUrl.text())
         elif self.tab.currentIndex() == 1:
             sel =self.select.selectedFiles()
@@ -142,3 +148,7 @@ class OpenRepositoryDialog(QFrame):
     def quit(self):
         self.close()
         self.pwin.close()
+
+
+
+

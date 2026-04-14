@@ -31,6 +31,7 @@ import sys
 import os
 import re
 import time
+import shutil
 from math import *
 # If started as program change stdout to liner buffering
 import psutil
@@ -99,9 +100,12 @@ class RGitVersions(QMainWindow):
                             "Unknown ++": "#FF44FF ++ ",
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
-        self.curBranch   = "main"
-        self.rgd         = RGitData(".", self.curBranch)
-        self.curBranch   = self.rgd.curBranch
+        if os.path.exists(".git"):
+            self.rgd         = RGitData(".", "main")
+            self.curBranch   = self.rgd.curBranch
+        else:
+            self.rgd         = None
+            self.curBranch   = None
         self.dirItems    = []
         self.fileItems   = []
         self.statusCache = {}
@@ -109,9 +113,11 @@ class RGitVersions(QMainWindow):
         self.updateIndex = 0
         self.initUI()
         self.initMenus()
-        for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
-            self.branchSelect.addItem(b)
-        self.branchSelect.setCurrentText("main")
+        if self.rgd is not None:
+            for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
+                self.branchSelect.addItem(b)
+            self.branchSelect.setCurrentText(self.curBranch)
+        self.updateButtonStates()
         QShortcut(QKeySequence("Alt+q"), self, self.closeApp)
         self.show()
         self.updTimer = QTimer()
@@ -120,6 +126,7 @@ class RGitVersions(QMainWindow):
         self.updTimer.start()
         self.resizeDirTree()
         self.resizeFileTree()
+
 
     def initUI(self):
         f = QFrame()
@@ -142,6 +149,7 @@ class RGitVersions(QMainWindow):
 
 
         self.tools = self.toolFrame()
+        self.toolFunc = {}
         self.toolBtn= {
             "open":     self.addToolButton("Open",    progPath+"/icons/hist.png",
                                            self.openRepo, "Open Repository"),
@@ -166,7 +174,7 @@ class RGitVersions(QMainWindow):
             "Update" :  self.addToolButton("Update",     progPath+"/icons/update.png",
                                            self.doPull, "Update / Pull Changes"),
             "clone"  :  self.addToolButton("Clone",      progPath+"/icons/checkout.png",
-                                           None, "Checkout / Clone"),
+                                           self.doClone, "Checkout / Clone"),
             "branch" :  self.addToolButton("Branch",     progPath+"/icons/branch.png",
                                            None, "Branch"),
             "merge"  :  self.addToolButton("Merge",      progPath+"/icons/merge.png",
@@ -191,8 +199,6 @@ class RGitVersions(QMainWindow):
         self.fileTree.setContextMenuPolicy(Qt.CustomContextMenu);
         self.fileTree.setSortingEnabled(True)
         self.dirTree.setHeaderLabels(["Directory","Status"])
-        self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
-        self.dirTree.addTopLevelItem(self.rootItem)
 
         self.showLocal = QCheckBox("Show Local Files")
         self.lFileType = QLabel("File Types: ")
@@ -232,10 +238,17 @@ class RGitVersions(QMainWindow):
         self.gbox.setRowStretch(3,0)
         self.gbox.setRowStretch(4,1)
         self.gbox.setRowStretch(5,0)
-        self.fill(self.curBranch)
-        self.rootItem.setExpanded(True)
-        self.fillFileList(self.rootItem)
-
+        if self.rgd is not None:
+            self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
+            self.dirTree.addTopLevelItem(self.rootItem)
+            self.fill(self.curBranch)
+            self.rootItem.setExpanded(True)
+            self.fillFileList(self.rootItem)
+            self.isFilled = True
+        else:
+            self.rootItem = None
+            self.isFilled = False
+            
         self.dirTree.itemClicked.connect(self.showFiles)
         self.dirTree.expanded.connect(self.resizeDirTree)
         self.dirTree.collapsed.connect(self.resizeDirTree)
@@ -252,7 +265,7 @@ class RGitVersions(QMainWindow):
         QShortcut(QKeySequence("Ctrl+r"), self.fileTree, self.doRestore)
         QShortcut(QKeySequence("Ctrl+d"), self.fileTree, self.diffWithPrev)
         QShortcut(QKeySequence("Ctrl+Shift+d"),  self.fileTree, self.diffWithHead)
-        # FIXME contxt menu
+        
 
 
     def initMenus(self):
@@ -310,6 +323,7 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.tbox)
         return f
 
+
     def infoFrameFrame(self):
         f=QFrame()
         self.ibox =QHBoxLayout()
@@ -346,11 +360,34 @@ class RGitVersions(QMainWindow):
             toolButton.setToolTip(tooltip)
         if func is not None:
             toolButton.clicked.connect(func)
-        else:
-            toolButton.setEnabled(False)
+#         else:
+#             toolButton.setEnabled(False)
+        self.toolFunc[toolButton] = func
         toolButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon);
         self.tools.layout().addWidget(toolButton)
         return  toolButton
+
+
+
+    def updateButtonStates(self):
+        if self.rgd is None:
+            self.__updateButtonStates(["open"])
+        elif self.rgd.isRemoteOnly():
+            self.__updateButtonStates(["open", "history", "diffHead", "info", "blame", "clone", "refrsh"])
+        else:
+            self.__updateButtonStates(["open",   "history",  "diff",    "diffHead", "revert", "info",
+                                       "blame",  "commityL", "commit",  "push",     "Update", 
+                                       "clone",  "branch",   "merge",   "Delete",   "refrsh"])
+            
+    def __updateButtonStates(self, enabledButtons):
+        print("   __updateButtonStates :", enabledButtons)
+        for name, btn in self.toolBtn.items():
+            if name in enabledButtons and self.toolFunc[btn] is not None:
+                print("\t\t", name, self.toolFunc[btn] )
+                btn.setEnabled(True)
+            else:
+                print("\t\t diasable", name)
+                btn.setEnabled(False)
 
 
     def switchBranch(self, branch):
@@ -360,14 +397,28 @@ class RGitVersions(QMainWindow):
 
 
     def switchRepo(self, repoType, repoPath):
+        self.isFilled    = False
         self.rgd         = RGitData(repoPath)
         self.curBranch   = self.rgd.curBranch
+        self.branchSelect.blockSignals(True)
+        self.branchSelect.clear()
+        for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
+            self.branchSelect.addItem(b)
+        self.branchSelect.setCurrentText(self.curBranch)
+        self.branchSelect.blockSignals(False)
+
+        if self.rootItem is None :
+            self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
+            self.dirTree.addTopLevelItem(self.rootItem)
         self.fill(self.curBranch)
-        if repoType == "remote":
-            self.toolBtn["clone"].setEnabled(True)
-        else:
-            self.toolBtn["clone"].setEnabled(False)
-            
+        self.fillFileList(self.rootItem)
+        self.updateButtonStates()
+        self.isFilled =  True
+#         if self.repoType == "remote":
+#             self.toolBtn["clone"].setEnabled(True)
+#         else:
+#             self.toolBtn["clone"].setEnabled(False)
+
 
 
     def resizeDirTree(self):
@@ -556,6 +607,8 @@ class RGitVersions(QMainWindow):
         
 
     def refreshStatus(self, allCommits = False):
+        if self.rgd is None or not self.isFilled:
+            return
         t0 =time.time()
         # print("  refreshStatus  ")
         # FIXME tree like dir state update
@@ -783,7 +836,15 @@ class RGitVersions(QMainWindow):
         self.repoDlg = OpenRepositoryDialog(self)
         self.repoDlg.openRepository.connect(self.switchRepo)
         
-            
+
+    def doClone(self):
+        dirPath = QFileDialog.getExistingDirectory(self, "Directory for  local repository")
+        if os.path.exists(dirPath) and dirPath != "":
+            print("move ", self.rgd.tmpRepoPath, " to ", dirPath)
+            shutil.move(self.rgd.tmpRepoPath, dirPath)
+            newRepoPath = dirPath + "/" + os.path.basename(self.rgd.tmpRepoPath)
+            self.switchRepo("local", newRepoPath)
+        
     def showHistory(self):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
