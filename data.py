@@ -124,11 +124,12 @@ class RGitData():
 
         if isinstance(repoPath, str):
             if os.path.exists(repoPath):
-                self.repo        = pygit2.Repository(repoPath)
-                self.tmpRepoPath = None
+                self.repo          = pygit2.Repository(repoPath)
+                self.tmpRepoPath   = None
+                self.localRepoPath = re.sub(r"\\", "/", os.path.abspath(repoPath))
             else:
-                self.repo        = self.cloneTempRepo(repoPath)
-                
+                self.repo          = self.cloneTempRepo(repoPath)
+                self.localRepoPath = None
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
                                 "remote" : list(self.repo.branches.remote)}

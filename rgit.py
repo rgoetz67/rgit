@@ -330,14 +330,17 @@ class RGitVersions(QMainWindow):
         f.setLayout(self.ibox)
 
 
+        self.infoLocalRepo = QLabel("Local Repository: ")
         self.infoCurBranch  = QLabel("Current branch = ")
         self.infoRemoteRepo = QLabel("Remote repo branch = ")
         self.infoRemoteURL  = QLabel(" @  ")
+        self.infoLocalRepo.setStyleSheet("QLabel { font-size:14px; font-weight:bold; margin-right:3em}")
         self.infoCurBranch.setStyleSheet("QLabel { font-size:14px; font-weight:bold; margin-right:3em}")
         self.infoRemoteRepo.setStyleSheet("QLabel { font-size:14px; font-weight:bold;}")
         self.infoRemoteURL.setStyleSheet("QLabel { font-size:14px; font-weight:bold; }")
         self.infoCurBranch.setMinimumWidth(200)
         self.infoRemoteRepo.setMinimumWidth(240)
+        self.ibox.addWidget(self.infoLocalRepo, 0)
         self.ibox.addWidget(self.infoCurBranch, 0)
         self.ibox.addWidget(self.infoRemoteRepo, 0)
         self.ibox.addWidget(self.infoRemoteURL, 0)
@@ -434,6 +437,7 @@ class RGitVersions(QMainWindow):
         
 
     def fill(self, branch=None):
+        self.infoLocalRepo.setText("Local Repository: "+self.rgd.localRepoPath)
         self.infoCurBranch.setText("Current branch = "+self.rgd.curBranch)
         self.infoRemoteRepo.setText("Remote repo branch = "+self.rgd.curRemoteBranch)
         self.infoRemoteURL.setText("  @    " + self.rgd.curRemoteUrl)
@@ -844,6 +848,7 @@ class RGitVersions(QMainWindow):
             shutil.move(self.rgd.tmpRepoPath, dirPath)
             newRepoPath = dirPath + "/" + os.path.basename(self.rgd.tmpRepoPath)
             self.switchRepo("local", newRepoPath)
+
         
     def showHistory(self):
         sel = self.fileTree.selectedItems()
