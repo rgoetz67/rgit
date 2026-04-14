@@ -105,7 +105,7 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
 
 class RGitData():
 
-    def __init__(self, curBranch):
+    def __init__(self, repoPath, curBranch):
         self.curBranch       = curBranch
         #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
         
@@ -121,8 +121,15 @@ class RGitData():
         else:
             self.privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
             self.publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
-        
-        self.repo            = pygit2.Repository(".")
+
+        if isinstance(repoPath, str):
+            if os.path.exists(repoPath):
+                self.repo        = pygit2.Repository(repoPath)
+                self.tmpRepoPath = None
+            else:
+                self.cloneTempRepo(repoPath)
+                self.repo        = self.cloneTempRepo(repoPath)
+                
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
                                 "remote" : list(self.repo.branches.remote)}
@@ -187,6 +194,20 @@ class RGitData():
         self.postProcess()
         self.saveCaches(self.primaryBranches, repoFiles=True)
            
+
+    def cloneTempRepo(self, repoUrl):
+        self.repoUrl = repoUrl
+        # FIXME use tyemp dir
+        tmpDir = "/home/goetz/tmp/.rgit/Rgit.tmp.%d" % os.getpid()
+     #   repoPath ="ssh://git@git.lemna.lemnatec.de:2222/goetz/LemnaGridNeXt.git"
+        localName = re.sub(r".git$","", os.path.basename(repoUrl))
+        self.tmpRepoPath = tmpDir + "/" +localName
+        return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=True,
+                                        callbacks=GitCallbacks(user="git",
+                                                               priv_key=privKeyFile,
+                                                               pub_key=publKeyFile))
+
+        
 
 
     def __scanBranchTree(self, branch, tree, parentPath, commitId, commitTime):
