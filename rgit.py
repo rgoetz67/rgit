@@ -363,6 +363,11 @@ class RGitVersions(QMainWindow):
         self.rgd         = RGitData(repoPath)
         self.curBranch   = self.rgd.curBranch
         self.fill(self.curBranch)
+        if repoType == "remote":
+            self.toolBtn["clone"].setEnabled(True)
+        else:
+            self.toolBtn["clone"].setEnabled(False)
+            
 
 
     def resizeDirTree(self):
