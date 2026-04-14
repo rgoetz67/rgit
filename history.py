@@ -72,6 +72,7 @@ class HistoryView(QFrame):
         self.diffBtn = {}
         self.blamBtn = {}
         self.initUI()
+        centerWindow(self, ref=self.pwin)
 
     def initUI(self):
         self.gbox = QGridLayout()

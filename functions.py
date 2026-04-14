@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+# File: functions.py
+# Time-stamp: <>
+# $Id: $
+#
+# Copyright (C) 2026 by LemnaTec GmbH
+#
+# Author: goetz
+#
+# Description: 
+#
+# cython: language_level=3
+
+import sys
+import os
+import re
+from math import *
+# If started as program change stdout to liner buffering
+if __name__ == '__main__':
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+
+
+def centerWindow(win, bySizeHint=False, ref=None):
+    if ref is None:
+        ref = getMainWindow()
+
+    if bySizeHint:
+        ww = win.sizeHint().width()
+        wh = win.sizeHint().height()
+    else:
+        ww   = win.width()
+        wh   = win.height()
+    print(" $$ CW:" , ref)
+    if ref is not None:
+        x = ref.pos().x() + (ref.width() >>1)  - (ww>>1)
+        y = ref.pos().y() + (ref.height() >>1) - (wh>>1)
+        print(" $$ CW:" , ref, ww, wh, x, y)
+        win.move(x,y)
+
+
+
+def getMainWindow():
+    win = QApplication.activeWindow()
+    if isinstance(win, QMainWindow):
+        return win
+    for w in QApplication.allWidgets():
+        if "ExperimentAnalysisManger" in str(w) and isinstance(w, QMainWindow):
+            return w
+    return None
+
+

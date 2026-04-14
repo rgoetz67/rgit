@@ -54,6 +54,7 @@ class BlameDisplay(QFrame):
             
         self.fill(commitId, blobId)
         self.show()
+        centerWindow(self, ref=self.pwin)
 
 
     def initUI(self):
