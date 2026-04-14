@@ -84,7 +84,7 @@ class OpenRepositoryDialog(QFrame):
         f.setLayout(self.rbox)
 
         l = QLabel ("URL of remote repository: ")
-        self.repoUrl = QLineEdit("ssh://git@git.lemna.lemnatec.de:2222/goetz/LemnaGridNeXt.git")
+        self.repoUrl = QLineEdit("")
         self.checkRepo = QPushButton("Check")
         self.checkRepo.setEnabled(False)
 
