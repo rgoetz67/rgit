@@ -189,7 +189,7 @@ class HistoryView(QFrame):
         self.blamBtn    = {}
         self.fileItems  = {}
         
-        newFiles = self.rgd.newFilesInCommit(self.branch, str(commit.id))
+        newFiles = self.rgd.newFilesInCommit( str(commit.id))
         self.filesList.clear()
         for eid, path in newFiles:
             if not self.rgd.repoFiles[path]["isDir"]:

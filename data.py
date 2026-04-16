@@ -765,9 +765,11 @@ class RGitData():
         # get all commits before commitTime and sort them newest to oldest
         commits = sorted( [ c  for c in self.repoFiles[path]["commits"]    if c[1] < commitTime],
                           key = lambda c: -c[1])
+        print("-------------- previousCommit:", branch, path, commitId, commitTime)
         print("commits:", commits)
         for commitId, commitTime, entryId, _path in commits:
             if commitId in self.allCommitIds[branch]:
+                print("-----> ", entryId)
                 return entryId
         return None
 
@@ -797,7 +799,8 @@ class RGitData():
         
         entry    = self.repo.get(blobId)
         # FIXME
-        commitId = self.getLastCommit(filePath)
+        commitId = self.commitByBlob.get(blobId, [["", 0]])[0][0]
+
         bf, ext  = os.path.splitext(os.path.basename(filePath))
         tmpFilePath = "/tmp/" + bf+"."+ commitId + ext
         with open(tmpFilePath, "wb") as out:
