@@ -144,6 +144,7 @@ class RGitData():
         self.commitByBlob = defaultdict(list)
         self.copies       = {}
         self.tags         = {}
+        self.latestCommit = {}
         self.dirStatusCache = {}
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False, "cbp": False}
@@ -183,20 +184,20 @@ class RGitData():
 
         t0 = time.time()
         self.loadCaches(self.primaryBranches)
-        self.getBranchFiles(self.curBranch)
+        self.latestCommit[self.curBranch] = self.getBranchFiles(self.curBranch)
         for branch in self.primaryBranches:
             if branch != self.curBranch:
                 print("\n scan ", branch)
-                self.getBranchFiles(branch)
+                self.latestCommit[branch] =  self.getBranchFiles(branch)
         print("------> %7.2fs" %(time.time()-t0))
         for branch in self.primaryBranches:
-            self.collectCommits(branch)
+            self.collectCommits(branch, verbose=True)
             print("------> %7.2fs" %(time.time()-t0))
         self.collectTags()
         self.postProcess()
         self.saveCaches(self.primaryBranches, repoFiles=True)
-           
-
+        
+        
     def cloneTempRepo(self, repoUrl):
         self.repoUrl = repoUrl
         # FIXME use tyemp dir
@@ -247,6 +248,7 @@ class RGitData():
         else:
             local = False
         commit = self.repo.revparse_single(branch)
+        # print(":::::getBranchFiles::::", branch, commit.id)
         tree   = commit.tree
         self.__scanBranchTree(branch, tree, ".", str(commit.id), commit.commit_time)
         if local:
@@ -256,8 +258,10 @@ class RGitData():
                     self.branchFiles[branch][f] = self.indexFiles[branch][f]
                     
         self.currentCommit[branch] = str(self.repo.revparse_single(branch).id)
-        print(" !! LAST COMMIT : ", branch, self.currentCommit[branch] )
+        # print(" !! LAST COMMIT : ", branch, self.currentCommit[branch] )
+        return str(commit.id)
 
+    
     def __newRepoFile( self, name, isDir=False,  files = None):
         commits = []
         return  { "name":name,
@@ -299,7 +303,7 @@ class RGitData():
 
 
 
-    def collectBlobsFromTree(self, branchName, tree, commit, parentPath):
+    def collectBlobsFromTree(self, branchName, tree, commit, parentPath, verbose=False):
         repo   = self.repo
         for e in tree:
             path = parentPath+"/"+ e.name
@@ -310,7 +314,8 @@ class RGitData():
 
 
             if path not in  self.repoFiles:
-                print("\t * add path to repoFiles:", path)
+                if verbose:
+                    print("\t * add path to repoFiles:", path)
                 self.repoFiles[path] = self.__newRepoFile(e.name, isDir=isDir)
                 self.updated["rf"] = True
             else:
@@ -322,6 +327,8 @@ class RGitData():
             esid = str(e.id)
             com  = [str(commit.id), commit.commit_time, str(e.id), path]
 
+            if verbose:
+                print("\t\t\t add to commitsByPath", path, "<-", com)
             self.commitsByPath[path]. append(com)
             self.updated["cbp"] = True
 
@@ -333,8 +340,9 @@ class RGitData():
             self.branchPath[path].add(branchName)
 
 
-    def collectCommits(self, branchName, stopCommitId = None):
-        print("collectCommits", branchName) 
+    def collectCommits(self, branchName, stopCommitId = None, verbose=False):
+        if verbose:
+            print("collectCommits", branchName) 
         self.updated[branchName]= False
         if branchName not in self.allCommitIds:
             self.allCommitIds[branchName] = set()
@@ -354,9 +362,10 @@ class RGitData():
             if commit.id in self.allCommitIds[branchName]:
                 self.addBranchToCommits(branchName, commit.tree, commit, ".")
             if str(commit.id) not in self.allCommitIds[branchName]:
-                print("   WALK :", commit.id, commit.commit_time)
+                if verbose:
+                    print("   WALK :", commit.id, commit.commit_time)
                 self.allCommitIds[branchName].add(str(commit.id))
-                self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
+                self.collectBlobsFromTree( branchName, commit.tree, commit, ".", verbose=verbose)
                 self.updated[branchName]= True
                 
 
@@ -403,17 +412,17 @@ class RGitData():
 #                 if path == "./justfile":
 #                     print("\t postProcess : add ", eid,"::", cid, cts)
                 self.commitByBlob[eid].append([cid, cts])
-        allReferecesCommitIds = set([c[0]    for v in self.commitByBlob.values()   for c in v])
-        print(allReferecesCommitIds)
-        missingCommits = set()
-        for branch in self.allCommitIds:
-            for cid in self.allCommitIds[branch]:
-                if cid not in allReferecesCommitIds:
-                    missingCommits.add(cid)
-        for cid in missingCommits:
-            commit = self.repo.get(cid)
-            print("\t\t refetch ", cid)
-            #            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
+#         allReferecesCommitIds = set([c[0]    for v in self.commitByBlob.values()   for c in v])
+#         # print(allReferecesCommitIds)
+#         missingCommits = set()
+#         for branch in self.allCommitIds:
+#             for cid in self.allCommitIds[branch]:
+#                 if cid not in allReferecesCommitIds:
+#                     missingCommits.add(cid)
+#         for cid in missingCommits:
+#             commit = self.repo.get(cid)
+#             print("\t\t refetch ", cid)
+#             #            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
             
         for p in self.repoFiles:
             for commitId, _cts, blobId, path in self.repoFiles[p]["commits"]:
@@ -421,27 +430,26 @@ class RGitData():
 
         for eid in self.commitByBlob:
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
-        if len(missingCommits)>0 and retry ==0:
-            self.postProcess(1)
+#         if len(missingCommits)>0 and retry ==0:
+#             self.postProcess(1)
             
 
 
 
     def updateLocal(self, stopCommitId, indexOnly=False):
-        print("----- updateLocal", stopCommitId, indexOnly)
         stopCommitId = copy.copy(self.currentCommit[self.curBranch])
-        self.getBranchFiles(self.curBranch)
+        self.latestCommit[self.curBranch] = self.getBranchFiles(self.curBranch)
         if not indexOnly:
             self.collectCommits(self.curBranch, stopCommitId=stopCommitId)
         self.postProcess()
 
 
         
-    def updateRemote(self, stopCommitId):
-        stopCommitId = copy.copy(self.currentCommit[curRemoteBranch])
-        self.getBranchFiles(self.curRemoteBranch)
-        self.collectCommits(self.curRemoteBranch, stopCommitId=stopCommitId)
-        self.postProcess()
+#     def updateRemote(self, stopCommitId):
+#         stopCommitId = copy.copy(self.currentCommit[curRemoteBranch])
+#         self.getBranchFiles(self.curRemoteBranch)
+#         self.collectCommits(self.curRemoteBranch, stopCommitId=stopCommitId)
+#         self.postProcess()
         
 
     def collectTags(self):
@@ -664,7 +672,6 @@ class RGitData():
         else:
             status = self.repo.status_file(path).name
         status = statusNameMap.get(status, status)
-        # print(":::::::", path, status)
         
         updateAvailable = False
         if path in self.branchFiles[self.curRemoteBranch]:
@@ -765,11 +772,11 @@ class RGitData():
         # get all commits before commitTime and sort them newest to oldest
         commits = sorted( [ c  for c in self.repoFiles[path]["commits"]    if c[1] < commitTime],
                           key = lambda c: -c[1])
-        print("-------------- previousCommit:", branch, path, commitId, commitTime)
-        print("commits:", commits)
+        # print("-------------- previousCommit:", branch, path, commitId, commitTime)
+        # print("commits:", commits)
         for commitId, commitTime, entryId, _path in commits:
             if commitId in self.allCommitIds[branch]:
-                print("-----> ", entryId)
+                # print("-----> ", entryId)
                 return entryId
         return None
 
@@ -866,9 +873,9 @@ class RGitData():
                     
     def projectName(self):
         p =self.repo.path.rstrip("/\\")
-        print(">>>>>", p)
-        print(">>>>>", os.path.dirname(p))
-        print(">>>>>", os.path.basename(os.path.dirname(p)) )
+
+
+
         return os.path.basename(os.path.dirname(p))
                                              
 
@@ -897,7 +904,9 @@ class RGitData():
         if pushToRemote:
             self.push()
         for branch in self.primaryBranches:
-            self.collectCommits(branch)
+            self.latestCommit[branch] = self.getBranchFiles(branch)
+            self.collectCommits(branch,verbose = True)
+        self.postProcess()
         return True
 
 
@@ -909,6 +918,24 @@ class RGitData():
                             callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
 
 
+    def fetch(self, remote_name=None, branch=None):
+        t0 =time.time()
+        branch = branch or self.curBranch
+        remote_name = remote_name or self.curRemote
+        # print("fetch ", branch, remote_name)
+        
+        for remote in self.repo.remotes:
+            if remote.name == remote_name:
+                remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+        for branch in self.primaryBranches:
+            self.latestCommit[branch] = self.getBranchFiles(branch)
+            self.collectCommits(branch)
+        self.postProcess()
+#         commit = self.repo.revparse_single(branch)
+#         if str(commit.id) != self.latestCommit[branch]:
+#             self.latestCommit[branch] = self.getBranchFiles(branch)
+        print("fetch remote done after %7.2fs" %(time.time() -t0))
+       
 
     def pull(self, remote_name=None, branch=None):
         print("PULL")
@@ -955,8 +982,12 @@ class RGitData():
                     self.repo.state_cleanup()
                 else:
                     raise AssertionError('Unknown merge analysis result')
-        self.updateLocal(None)
-
+        # self.updateLocal(None)
+        for branch in self.primaryBranches:
+            self.latestCommit[branch] = self.getBranchFiles(branch)
+            self.collectCommits(branch,verbose = True)
+        self.postProcess()
+ 
 
     def addFile(self, f):
         if f[-1] in ["/","\\"]:
@@ -967,7 +998,11 @@ class RGitData():
         else:
             self.repo.index.add(f)
         self.repo.index.write()
-        self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
+        for branch in self.primaryBranches:
+            self.latestCommit[branch] = self.getBranchFiles(branch)
+            self.collectCommits(branch,verbose = True)
+        self.postProcess()
+#         self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
 
         
     def deleteFile(self, f):

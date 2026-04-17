@@ -383,19 +383,19 @@ class RGitVersions(QMainWindow):
                                        "clone",  "branch",   "merge",   "Delete",   "refrsh"])
             
     def __updateButtonStates(self, enabledButtons):
-        print("   __updateButtonStates :", enabledButtons)
+        # print("   __updateButtonStates :", enabledButtons)
         for name, btn in self.toolBtn.items():
             if name in enabledButtons and self.toolFunc[btn] is not None:
-                print("\t\t", name, self.toolFunc[btn] )
+                # print("\t\t", name, self.toolFunc[btn] )
                 btn.setEnabled(True)
             else:
-                print("\t\t diasable", name)
+                # print("\t\t diasable", name)
                 btn.setEnabled(False)
 
 
     def switchBranch(self, branch):
         self.rgd.getBranchData(branch)
-        print(" FIXME: switch branch on file system")
+        # print(" FIXME: switch branch on file system")
         
 
 
@@ -442,7 +442,7 @@ class RGitVersions(QMainWindow):
         self.infoRemoteRepo.setText("Remote repo branch = "+self.rgd.curRemoteBranch)
         self.infoRemoteURL.setText("  @    " + self.rgd.curRemoteUrl)
         self.dirItems = []
-        print("######", branch, self.rgd.branchFiles[branch].keys())
+        # print("######", branch, self.rgd.branchFiles[branch].keys())
         self.rootItem.setData(0, Qt.UserRole , (self.rgd.branchFiles[branch]["."], "."))
         status = self.rgd.getDirStatus(branch,  ".")
         self.statusCache["."] = status
@@ -520,7 +520,7 @@ class RGitVersions(QMainWindow):
 
         # print("::::::::::", branch, "\t", self.rgd.branchFiles[branch].keys())
         for f in sorted(allFiles):
-            print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
+            # print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
             if f in files:
                 e   = self.rgd.branchFiles[branch][f]
                 eid = e["id"]
@@ -563,14 +563,14 @@ class RGitVersions(QMainWindow):
                 self.colorizeTreeItem(item, status)
                 self.fileTree.addTopLevelItem(item)
                 self.fileItems.append(item)
-                print("\t\t ==>", item)
+                # print("\t\t ==>", item)
             self.statusCache[f] = status
         self.resizeFileTree()
 
 
     def showFileContextMenu(self, p):
         item = self.fileTree.itemAt(p)
-        print("custom menu at ",p, item, item.text(0), item.text(1))
+        # print("custom menu at ",p, item, item.text(0), item.text(1))
         status = item.text(1)
         if status == "not versioned":
             self.curContextItem = item
@@ -613,6 +613,7 @@ class RGitVersions(QMainWindow):
     def refreshStatus(self, allCommits = False):
         if self.rgd is None or not self.isFilled:
             return
+        self.rgd.fetch()
         t0 =time.time()
         # print("  refreshStatus  ")
         # FIXME tree like dir state update
@@ -733,7 +734,7 @@ class RGitVersions(QMainWindow):
     
     def doCommitAndPush(self):
         files = self.__getCommitFiles()
-        print(">>>>>>", files)
+        # print(">>>>>>", files)
         self.__doCommit(files, push=True)
         
     def __getCommitFiles(self):
@@ -824,15 +825,15 @@ class RGitVersions(QMainWindow):
                 
     def showBlame(self):
         sel = self.fileTree.selectedItems()
-        print(">>>", sel)
+        # print(">>>", sel)
         if len(sel) == 1:
             fileName = sel[0].text(0)
             filePath = sel[0].data(0, Qt.UserRole)[0]
             branch   = sel[0].data(0, Qt.UserRole)[1]
             entryId  = sel[0].data(0, Qt.UserRole)[2]
             commitId = self.rgd.getCommitOfBlob(entryId, lastBefore=time.time())
-            print ("BLAME : ", branch, entryId, commitId)
-            print ("BLAME : ", filePath)
+            # print ("BLAME : ", branch, entryId, commitId)
+            # print ("BLAME : ", filePath)
             self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
 
 
