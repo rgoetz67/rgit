@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 18:16:54 goetz>
+# Time-stamp: <19-Apr-2026 18:51:54 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -187,7 +187,7 @@ class RGitVersions(QMainWindow):
         self.tools = self.toolFrame()
         self.toolFunc = {}
         self.toolBtn= {
-            "open":     self.addToolButton("Open",    progPath+"/icons/hist.png",
+            "open":     self.addToolButton("Open",    progPath+"/icons/open.png",
                                            self.openRepo, "Open Repository"),
             "history":  self.addToolButton("History",    progPath+"/icons/hist.png",
                                            self.showHistory, "History of selected file"),
@@ -195,19 +195,19 @@ class RGitVersions(QMainWindow):
                                            self.diffWithPrev, "Diff local changes"),
             "diffHead": self.addToolButton("Diff Head",  progPath+"/icons/diffRemote.png",
                                            self.diffWithHead, "Diff remote changes"),
-            "revert" :  self.addToolButton("Retore",     progPath+"/icons/revert.png",
+            "revert" :  self.addToolButton("Restore",     progPath+"/icons/revert.png",
                                            self.doRestore, "Revert local changes"),
             "blame"  :  self.addToolButton("Blame",      progPath+"/icons/blame.png",
                                            self.showBlame, "Blame"),
-            "commitL":  self.addToolButton("Commit Locally", progPath+"/icons/commitLocal.png",
+            "commitL":  self.addToolButton("Commit\nLocally", progPath+"/icons/commitLocal.png",
                                            self.doLocalCommit, "Commit to local repo"),
-            "commit" :  self.addToolButton("Commit & Push", progPath+"/icons/commit.png",
+            "commit" :  self.addToolButton("Commit\n&& Push", progPath+"/icons/commit.png",
                                            self.doCommitAndPush, "Commit to remote repo"),
-            "push" :    self.addToolButton("Push Local\nto master", progPath+"/icons/push.png",
+            "push" :    self.addToolButton("Push Local\nto Remote", progPath+"/icons/push.png",
                                            self.doPush, "Commit to remote repo"),
             "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
                                            None, " Repo Info"),
-            "Update" :  self.addToolButton("Update",     progPath+"/icons/update.png",
+            "Update" :  self.addToolButton("Update\n or Pull",     progPath+"/icons/update.png",
                                            self.doPull, "Update / Pull Changes"),
             "clone"  :  self.addToolButton("Clone",      progPath+"/icons/checkout.png",
                                            self.doClone, "Checkout / Clone"),
@@ -219,7 +219,7 @@ class RGitVersions(QMainWindow):
                                            None, "Delete Files from repo"),
             "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
                                            self.refreshTrees, "Refresh"),
-            "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/refresh.png",
+            "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/rebuild.png",
                                            self.rebuildRGB, "Rebuild internal caches"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
@@ -393,13 +393,13 @@ class RGitVersions(QMainWindow):
 
     def addToolButton(self, text, iconFile, func, tooltip):
         toolButton = QToolButton()
-        toolButton.setMinimumHeight(64)
+        toolButton.setMinimumHeight(80)
         toolButton.setMinimumWidth(48)
         toolButton.setIcon( QIcon(iconFile))
         toolButton.setIconSize(QSize(48,48))
         toolButton.setText(text)
         # print(">>toolButton>>", text)
-        toolButton.setStyleSheet("QToolButton {font-size:10px;}")
+        toolButton.setStyleSheet("QToolButton {font-size:9px; padding:2px}")
         if func is None:
             toolButton.setToolTip(tooltip + "\n (disabled)")
         else:
@@ -539,7 +539,7 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-  #     print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
@@ -563,13 +563,15 @@ class RGitVersions(QMainWindow):
                             if extFilter["."]:  # aka other files
                                 localFiles.append(f)
         for f in self.rgd.branchFiles[self.rgd.curRemoteBranch]:
-            if f not in files:
-                if "/" not in f[len(folder)+1:] and f != folder:
-                    remoteOnlyFiles.append(f)
+            if  f[len(folder):] == folder:
+                if f not in files:
+                    if "/" not in f[len(folder)+1:] and f != folder:
+                        remoteOnlyFiles.append(f)
+        
         allFiles = files + localFiles + remoteOnlyFiles
 
         for f in sorted(allFiles):
-            # print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
+           #  print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
             if f in files or f in remoteOnlyFiles:
                 if f in remoteOnlyFiles:
                     e = self.rgd.branchFiles[self.rgd.curRemoteBranch][f]
@@ -645,6 +647,7 @@ class RGitVersions(QMainWindow):
             dirName = sel[0].text(0)
         else:
             dirName = None
+        print(">>>>>> refreshTrees :", dirName)
         self.dirTree.clear()
         # self.fileTree.clear()
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
@@ -652,8 +655,7 @@ class RGitVersions(QMainWindow):
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
         if dirName is not None:
-            items = self.dirTree.findItems(dirName, Qt.MatchExactly, 0)
-            for item in items:
+            for item, _ in self.dirItems:
                 if item.text(0) == dirName:
                     self.dirTree.setCurrentItem(item)
                     self.showFiles(item)
