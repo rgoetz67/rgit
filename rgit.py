@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 18:51:54 goetz>
+# Time-stamp: <19-Apr-2026 18:53:01 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -539,7 +539,7 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        # print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
@@ -647,7 +647,6 @@ class RGitVersions(QMainWindow):
             dirName = sel[0].text(0)
         else:
             dirName = None
-        print(">>>>>> refreshTrees :", dirName)
         self.dirTree.clear()
         # self.fileTree.clear()
         self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
