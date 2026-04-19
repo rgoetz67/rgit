@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 18:13:35 goetz>
+# Time-stamp: <19-Apr-2026 19:12:26 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -200,7 +200,8 @@ class RGitData():
         self.collectTags()
         self.postProcess()
         self.saveCaches(self.primaryBranches, repoFiles=True)
-
+        self.collectCommitMessages()
+        
         
     def cloneTempRepo(self, repoUrl):
         self.repoUrl = repoUrl
@@ -436,8 +437,16 @@ class RGitData():
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
 #         if len(missingCommits)>0 and retry ==0:
 #             self.postProcess(1)
-            
 
+
+    def collectCommitMessages(self, n=32):
+        walker = self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME )
+        self.lastCommitMessages = []
+        for commit in walker:
+            self.lastCommitMessages.append(commit.message)
+            if len(self.lastCommitMessages) >n:
+                break
+ 
 
 
     def updateLocal(self, stopCommitId, indexOnly=False):
@@ -910,6 +919,7 @@ class RGitData():
         user = self.repo.default_signature
         tree      = index.write_tree()
         new_commit = self.repo.create_commit(ref, user, user, message, tree, parents)
+        self.lastCommitMessages = [message] + self.lastCommitMessages
         print(">>>>> NEW COMMIT = ", new_commit)
         if pushToRemote:
             self.push()

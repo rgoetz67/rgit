@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: commitDlg.py
-# Time-stamp: <19-Apr-2026 18:54:22 goetz>
+# Time-stamp: <19-Apr-2026 19:15:42 goetz>
 # $Id: $
 #
 # Copyright (C) 2026 by LemnaTec GmbH
@@ -73,23 +73,34 @@ class CommitDialog(QFrame):
         self.comMsg    = QLabel("")
         self.comMsg.setStyleSheet("QLabel {font-weight:bold; font-size:16px}")
       # self.comMsg.hide()
+        self.lPrev     = QLabel("Previous Messages:")
+        self.prevMsg = QComboBox()
+        self.prevMsg.addItem("", -1)
+        for i, msg in enumerate(self.rgd.lastCommitMessages):
+            line1 = msg.split("\n")[0]
+            self.prevMsg.addItem(line1, i)
+        self.prevMsg.currentIndexChanged.connect(self.copyMessage)
         self.buttons   = self.buttonFrame()
 
-        self.gbox.addWidget(self.lFiles,    1,1,1, 2)
-        self.gbox.addWidget(self.filesList, 2,1,1, 2)
-        self.gbox.addWidget(self.comMsg ,   3,1,1, 2, Qt.AlignHCenter)
-        self.gbox.addWidget(self.lMessage,  4,1,1, 2)
-        self.gbox.addWidget(self.message,   5,1,1, 2)
-        self.gbox.addWidget(self.buttons,   6,1,1, 2)
+        self.gbox.addWidget(self.lFiles,    1,1,1, 3)
+        self.gbox.addWidget(self.filesList, 2,1,1, 3)
+        self.gbox.addWidget(self.comMsg ,   3,1,1, 3, Qt.AlignHCenter)
+        self.gbox.addWidget(self.lMessage,  4,1,1, 3)
+        self.gbox.addWidget(self.message,   5,1,1, 3)
+        self.gbox.addWidget(self.lPrev  ,   6,1,1, 1)
+        self.gbox.addWidget(self.prevMsg,   6,3,1, 1)
+        self.gbox.addWidget(self.buttons,   7,1,1, 3)
 
-        self.gbox.setColumnStretch(1,1)
+        self.gbox.setColumnStretch(1,0)
         self.gbox.setColumnStretch(2,1)
+        self.gbox.setColumnStretch(3,0)
         self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,1)
         self.gbox.setRowStretch(2,0)
         self.gbox.setRowStretch(4,0)
         self.gbox.setRowStretch(5,1)
         self.gbox.setRowStretch(6,0)
+        self.gbox.setRowStretch(7,0)
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
         self.setMinimumWidth(640)
@@ -142,6 +153,15 @@ class CommitDialog(QFrame):
         self.filesList.setColumnWidth(0, self.width()-324)
 
 
+
+    def copyMessage(self, idx):
+        msgIndex = self.prevMsg.currentData()
+        if msgIndex >=0:
+            self.message.setPlainText(self.rgd.lastCommitMessages[msgIndex])
+        else:
+            self.message.clear()
+#         print(" COPY ", msgIndex)
+#         print(" COPY ", self.rgd.lastCommitMessages[msgIndex])
 
     def doCommit(self):
         files = []
