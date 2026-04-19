@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 18:03:22 goetz>
+# Time-stamp: <19-Apr-2026 18:13:35 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -664,8 +664,11 @@ class RGitData():
             return True
         return False
     
-    def getFileStatus(self, branchOrId, path):
+    def getFileStatus(self, branchOrId, path, remoteOnly = False):
         global statusNameMap
+        if remoteOnly:
+            
+            return "Only On Remote"
         if branchOrId in self.branches["all"]:
             eid    = self.branchFiles[branchOrId][path]["id"]
         else:
@@ -702,7 +705,10 @@ class RGitData():
         self.dirStatusCache = {}
     
 
-    def getDirStatus(self, branch, path, verbose=False, useDirStatusCache=False):
+    def getDirStatus(self, branch, path, verbose=False, useDirStatusCache=False,remoteOnly=False ):
+        if remoteOnly:
+            return  "Only On Remote"
+
         statusDict = self.__getDirStatus(branch,  path, useDirStatusCache=useDirStatusCache)
         nStat      =  np.sum(np.array(list(statusDict.values())))
 

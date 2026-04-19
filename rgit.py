@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 18:04:19 goetz>
+# Time-stamp: <19-Apr-2026 18:16:54 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -547,6 +547,7 @@ class RGitVersions(QMainWindow):
         folder = parentItem.data(0, Qt.UserRole)[1]
 
         localFiles = []
+        remoteOnlyFiles = []
         if self.showLocal.isChecked():
             extFilter  = self.__acceptedExtensions()
             for f in glob.glob(folder + "/*"):
@@ -561,26 +562,32 @@ class RGitVersions(QMainWindow):
                         else:
                             if extFilter["."]:  # aka other files
                                 localFiles.append(f)
-        allFiles = files + localFiles
+        for f in self.rgd.branchFiles[self.rgd.curRemoteBranch]:
+            if f not in files:
+                if "/" not in f[len(folder)+1:] and f != folder:
+                    remoteOnlyFiles.append(f)
+        allFiles = files + localFiles + remoteOnlyFiles
 
-
-        # print("::::::::::", branch, "\t", self.rgd.branchFiles[branch].keys())
         for f in sorted(allFiles):
             # print("\t add ", branch, f, f in files, f in  self.rgd.branchFiles[branch])
-            if f in files:
-                e   = self.rgd.branchFiles[branch][f]
+            if f in files or f in remoteOnlyFiles:
+                if f in remoteOnlyFiles:
+                    e = self.rgd.branchFiles[self.rgd.curRemoteBranch][f]
+                else:
+                    e   = self.rgd.branchFiles[branch][f]
+
                 eid = e["id"]
                 entry = self.rgd.repo.get(eid)
 
                 if len(e["files"])>0:
                     fname  = os.path.basename(f) +"/"
-                    status = self.rgd.getDirStatus(branch, f)
+                    status = self.rgd.getDirStatus(branch, f, remoteOnly = f in remoteOnlyFiles)
                     self.statusCache[f] = status
                     obj    = self.rgd.repo.get(e["id"])
 
                 else:
                     fname = os.path.basename(f)
-                    status = self.rgd.getFileStatus(eid, f)
+                    status = self.rgd.getFileStatus(eid, f, remoteOnly = f in remoteOnlyFiles)
 
                 branches = self.rgd.getBranchesForPath(f)
 
