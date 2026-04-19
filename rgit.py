@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <29-Mar-2026 16:13:41 goetz>
+# Time-stamp: <19-Apr-2026 16:43:50 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -691,7 +691,7 @@ class RGitVersions(QMainWindow):
         self.refreshTrees()
 
     def doRestoreFile(self, f = None):
-        if f is None:
+        if f is None or not isinstance(f, str):
             print("restore  ", self.curContextItem.text(0))
             f = self.curContextItem.text(0)
         self.rgd.restoreFile(f)
