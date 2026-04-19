@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: browser.py
-# Time-stamp: <>
+# Time-stamp: <19-Apr-2026 17:39:25 goetz>
 # $Id: $
 #
 # Copyright (C) 2026 by LemnaTec GmbH
@@ -90,7 +90,33 @@ class OpenRepositoryDialog(QFrame):
         self.bbox  = QGridLayout()
         f.setLayout(self.bbox)
 
+        self.bookmarks = QTreeWidget()
+        self.bookmarks.setHeaderLabels(["Name", "Type", "Location"])
+        for name, rp in self.pwin.config.get("bookmarks", {}).items():
+            if isinstance(rp, dict):
+                item = QTreeWidgetItem([name, "", ""])
+                self.bookmarks.addTopLevelItem(item)
+                self.__addBookmarks(item, rp)
+            else:            
+                item = QTreeWidgetItem([name, rp[0], rp[1]])
+                self.bookmarks.addTopLevelItem(item)
+
+        
+        self.bbox.addWidget(self.bookmarks, 1,1,1,1)
+        self.bookmarks.resizeColumnToContents(0)
+        self.bookmarks.resizeColumnToContents(1)
+
+        self.bookmarks.itemDoubleClicked.connect(self.openRepo)
         return f
+
+
+    def __addBookmarks(self, parentItem, bookmarks):
+        for name, rp in bookmarks.items():
+            if isinstance(rp, dict):
+                item = QTreeWidgetItem(parentItem, [name, "", ""])
+                self.__addBookmarks(item, rp)
+            else:            
+                item = QTreeWidgetItem(parentItem,[name, rp[0], rp[1]])
 
 
     def localRepoFrame(self):
@@ -131,8 +157,12 @@ class OpenRepositoryDialog(QFrame):
         return f
 
 
+
+    def openBookMark(self):
+        pass
+
     def openRepo(self):
-        print(self.tab.tabText(self.tab.currentIndex()), self.tab.currentIndex())
+        #        print(self.tab.tabText(self.tab.currentIndex()), self.tab.currentIndex())
         if self.tab.currentIndex() == 2:
             self.msg.setText("Retrieve remote repository data")
             self.msg.show()
@@ -142,6 +172,14 @@ class OpenRepositoryDialog(QFrame):
             sel =self.select.selectedFiles()
             if len(sel)>0:
                 self.openRepository.emit("local",  sel[0])
+        elif self.tab.currentIndex() == 0:
+            selItems = self.bookmarks.selectedItems()
+            if len(selItems)>0:
+                repoType = selItems[0].text(1)
+                repoPath = selItems[0].text(2)
+                if repoType == "local":
+                    os.chdir(repoPath)
+                self.openRepository.emit(repoType, repoPath)
         self.close()
 
     

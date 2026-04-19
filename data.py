@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <29-Mar-2026 16:02:09 goetz>
+# Time-stamp: <19-Apr-2026 17:40:28 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -127,9 +127,12 @@ class RGitData():
                 self.repo          = pygit2.Repository(repoPath)
                 self.tmpRepoPath   = None
                 self.localRepoPath = re.sub(r"\\", "/", os.path.abspath(repoPath))
+                self.repoPath      = repoPath
             else:
                 self.repo          = self.cloneTempRepo(repoPath)
                 self.localRepoPath = None
+                self.repoPath      = repoPath
+
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
                                 "remote" : list(self.repo.branches.remote)}
@@ -196,7 +199,7 @@ class RGitData():
         self.collectTags()
         self.postProcess()
         self.saveCaches(self.primaryBranches, repoFiles=True)
-        
+
         
     def cloneTempRepo(self, repoUrl):
         self.repoUrl = repoUrl

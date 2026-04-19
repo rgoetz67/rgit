@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 16:43:50 goetz>
+# Time-stamp: <19-Apr-2026 17:25:10 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -62,13 +62,49 @@ import pygit2
 
 timFormat = "%Y-%m-%d %H:%M:%S"
 
+
+def loadSettings():
+    if sys.platform == "win32":
+        if "HOME" in os.environ:
+            confPath = os.environ["HOME"]+"\\.rgit\\config"
+        elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit"
+        else:
+            confPath = ".rgit\\config"
+    else:
+        confPath = os.environ["HOME"]+"/.rgit/config"
+
+    if os.path.exists(confPath):
+        with open(confPath) as inp:
+            return json.load(inp)
+    return {}
+
+
+def saveSettings(conf):
+    if sys.platform == "win32":
+        if "HOME" in os.environ:
+            confPath = os.environ["HOME"]+"\\.rgit\\config"
+        elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit"
+        else:
+            confPath = ".rgit\\config"
+    else:
+        confPath = os.environ["HOME"]+"/.rgit/config"
+
+    if not os.path.exists(os.path.dirname(confPath)):
+        os.makedirs(os.path.dirname(confPath))
+
+    if os.path.exists(os.path.dirname(confPath)):
+        with open(confPath, "w") as out:
+            json.dump(conf, out, indent=4)
+            
+
+
 class RToolButton(QToolButton):
 
     def __init(self, text, icon):
         super().__init__(text, icon)
         
-
-
 
 
 class RGitVersions(QMainWindow):
@@ -77,7 +113,7 @@ class RGitVersions(QMainWindow):
     def __init__(self, argv):
         super().__init__()
 
-
+        self.config = loadSettings()
         self.statusColor = {"CURRENT"       : "#FFFFFF",
                             "MODIFIED"      : "#FF8888",
                             "ADDED"         : "#FFBB88",
@@ -340,11 +376,16 @@ class RGitVersions(QMainWindow):
         self.infoRemoteURL.setStyleSheet("QLabel { font-size:14px; font-weight:bold; }")
         self.infoCurBranch.setMinimumWidth(200)
         self.infoRemoteRepo.setMinimumWidth(240)
+
+        self.bookmarkBtn = QPushButton("+")
+        self.bookmarkBtn.setStyleSheet("QPushButton { font-size:16px; font-weight:bold; max-height:20px ; max-width:20px}")
+        self.bookmarkBtn.clicked.connect(self.addBookmark)
         self.ibox.addWidget(self.infoLocalRepo, 0)
         self.ibox.addWidget(self.infoCurBranch, 0)
         self.ibox.addWidget(self.infoRemoteRepo, 0)
         self.ibox.addWidget(self.infoRemoteURL, 0)
         self.ibox.addWidget(QLabel(" "), 1)
+        self.ibox.addWidget(self.bookmarkBtn, 0, Qt.AlignRight)
         return f
         
 
@@ -437,7 +478,10 @@ class RGitVersions(QMainWindow):
         
 
     def fill(self, branch=None):
-        self.infoLocalRepo.setText("Local Repository: "+self.rgd.localRepoPath)
+        if self.rgd.localRepoPath is not None:
+            self.infoLocalRepo.setText("Local Repository: "+self.rgd.localRepoPath)
+        else:
+            self.infoLocalRepo.setText("Local Repository: none")
         self.infoCurBranch.setText("Current branch = "+self.rgd.curBranch)
         self.infoRemoteRepo.setText("Remote repo branch = "+self.rgd.curRemoteBranch)
         self.infoRemoteURL.setText("  @    " + self.rgd.curRemoteUrl)
@@ -877,6 +921,51 @@ class RGitVersions(QMainWindow):
             self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
         
 
+
+
+    def getNameOfBookmarkedRepo(self, repoPath, bookmarks):
+        repoName = None
+        for rn, rp in bookmarks.items():
+            if isinstance(rp, dict):
+                return self. getNameOfBookmarkedRepo(repoPath, rp)
+            
+            if rp[0]  == repoPath[0] and rp[1] == repoPath[1]:
+                repoName = rn
+                break
+        return repoName
+
+
+    def addBookmark(self):
+        if self.rgd.localRepoPath is not None:
+            repoPath = ("local", self.rgd.localRepoPath)
+            repoName = os.path.basename(self.rgd.localRepoPath)
+        else:
+            repoPath = ("remote", self.rgd.repoPath)
+            repoName = os.path.basename(self.rgd.repoPath)[:-4]
+        oldName = self. getNameOfBookmarkedRepo(repoPath,  self.config.get("bookmarks", {}))
+
+        if oldName is not None:
+            msg = "The %s repository at %s\n has already been bookmarks\n by the name '%s'"%\
+                  (repoPath[0], repoPath[1], oldName)
+            dlg = QMessageBox.warning(self, "Repository alreday bookmarked", msg)
+            dlg.exec()
+            return
+
+        if "bookmarks" not in self.config:
+             self.config["bookmarks"] = {}
+        repoName1 = repoName
+        if  repoName in self.config["bookmarks"]:
+            repoName = repoName1 + " (%s)" % repoPath[0]
+
+        n=1
+        while repoName in self.config["bookmarks"]:
+            n+=1
+            repoName = repoName1 + " (%s) #%d" % (repoPath[0] , n)
+            
+        self.config["bookmarks"][repoName] = repoPath
+        saveSettings(self.config)
+        
+            
     
     def doDummy(self):
         print("DUMMY ACTION")
