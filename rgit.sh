@@ -11,8 +11,20 @@ P=`dirname $0`
 
 if [ "$VN" != "rg" ]
 then
+    if [ ! -d "$P/rg" ]
+    then
+	echo "create venv"
+	python3 -m venv "$P/rg"
+	echo "activate"
+	source $P/rg/bin/activate 
+	echo "-> '$VIRTUAL_ENV'" 
+	echo " pip install"
+	python3 -m pip install -r $P/requirements.txt
+	echo " pip done"
+	python3 -m pip freeze
+    else
     echo "activate"
-    source $P/rg/bin/activate 
-    echo $VIRTUAL_ENV
+	source $P/rg/bin/activate 
+    fi
 fi
 "$P/rgit.py"
