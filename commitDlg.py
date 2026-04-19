@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: commitDlg.py
-# Time-stamp: <29-Mar-2026 16:52:23 goetz>
+# Time-stamp: <19-Apr-2026 18:54:22 goetz>
 # $Id: $
 #
 # Copyright (C) 2026 by LemnaTec GmbH
@@ -45,9 +45,10 @@ class CommitDialog(QFrame):
         self.revretBtn = {}
         self.revertBtn = {}
         self.initUI()
+        QApplication.processEvents()
         self.fill(files)
         self.pushToRem.setChecked(push)
-        print("      push = ", push)
+        # print("      push = ", push)
         self.show()
         centerWindow(self, ref=self.pwin)
 
