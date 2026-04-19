@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 17:40:28 goetz>
+# Time-stamp: <19-Apr-2026 18:03:22 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -105,7 +105,7 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
 
 class RGitData():
 
-    def __init__(self, repoPath, curBranch=None):
+    def __init__(self, repoPath, curBranch=None, forcedRebuild=False):
         self.curBranch       = curBranch
         #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
         
@@ -186,7 +186,8 @@ class RGitData():
         self.primaryBranches = [localPrim, remotePrim]
 
         t0 = time.time()
-        self.loadCaches(self.primaryBranches)
+        if not forcedRebuild:
+            self.loadCaches(self.primaryBranches)
         self.latestCommit[self.curBranch] = self.getBranchFiles(self.curBranch)
         for branch in self.primaryBranches:
             if branch != self.curBranch:

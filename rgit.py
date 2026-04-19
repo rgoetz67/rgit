@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # File: training.py
-# Time-stamp: <19-Apr-2026 17:25:10 goetz>
+# Time-stamp: <19-Apr-2026 18:04:19 goetz>
 # $Id: $
 #
 # Copyright (C) 2021 by LemnaTec GmbH
@@ -219,6 +219,8 @@ class RGitVersions(QMainWindow):
                                            None, "Delete Files from repo"),
             "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
                                            self.refreshTrees, "Refresh"),
+            "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/refresh.png",
+                                           self.rebuildRGB, "Rebuild internal caches"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
         self.infos = self.infoFrameFrame()
@@ -421,7 +423,7 @@ class RGitVersions(QMainWindow):
         else:
             self.__updateButtonStates(["open",   "history",  "diff",    "diffHead", "revert", "info",
                                        "blame",  "commityL", "commit",  "push",     "Update", 
-                                       "clone",  "branch",   "merge",   "Delete",   "refrsh"])
+                                       "clone",  "branch",   "merge",   "Delete",   "refrsh", "rebuild"])
             
     def __updateButtonStates(self, enabledButtons):
         # print("   __updateButtonStates :", enabledButtons)
@@ -921,6 +923,25 @@ class RGitVersions(QMainWindow):
             self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
         
 
+    def rebuildRGB(self):
+        self.isFilled    = False
+        curRepoPath      = self.rgd.repoPath
+        self.rgd         = RGitData(curRepoPath, forcedRebuild=True)
+        self.curBranch   = self.rgd.curBranch
+        self.branchSelect.blockSignals(True)
+        self.branchSelect.clear()
+        for b in self.rgd.branches["local"] +self.rgd.branches["remote"] :
+            self.branchSelect.addItem(b)
+        self.branchSelect.setCurrentText(self.curBranch)
+        self.branchSelect.blockSignals(False)
+
+        if self.rootItem is None :
+            self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
+            self.dirTree.addTopLevelItem(self.rootItem)
+        self.fill(self.curBranch)
+        self.fillFileList(self.rootItem)
+        self.updateButtonStates()
+        self.isFilled =  True
 
 
     def getNameOfBookmarkedRepo(self, repoPath, bookmarks):
