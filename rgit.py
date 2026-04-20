@@ -141,7 +141,7 @@ class RGitVersions(QMainWindow):
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
         if os.path.exists(".git"):
-            self.rgd         = RGitData(".", "main")
+            self.rgd         = RGitData(self.config, ".", "main")
             self.curBranch   = self.rgd.curBranch
         else:
             self.rgd         = None
@@ -448,7 +448,7 @@ class RGitVersions(QMainWindow):
 
     def switchRepo(self, repoType, repoPath):
         self.isFilled    = False
-        self.rgd         = RGitData(repoPath)
+        self.rgd         = RGitData(self.config, repoPath)
         self.curBranch   = self.rgd.curBranch
         self.branchSelect.blockSignals(True)
         self.branchSelect.clear()
@@ -976,7 +976,7 @@ class RGitVersions(QMainWindow):
     def rebuildRGB(self):
         self.isFilled    = False
         curRepoPath      = self.rgd.repoPath
-        self.rgd         = RGitData(curRepoPath, forcedRebuild=True)
+        self.rgd         = RGitData(self.config, curRepoPath, forcedRebuild=True)
         self.curBranch   = self.rgd.curBranch
         self.branchSelect.blockSignals(True)
         self.branchSelect.clear()

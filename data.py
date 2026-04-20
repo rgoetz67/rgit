@@ -105,8 +105,9 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
 
 class RGitData():
 
-    def __init__(self, repoPath, curBranch=None, forcedRebuild=False):
+    def __init__(self, config,  repoPath, curBranch=None, forcedRebuild=False):
         self.curBranch       = curBranch
+        self.config          = config
         #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
         
         # FXIME better detection of available ssh keys
@@ -155,8 +156,16 @@ class RGitData():
         self.updated      = {"rf" : False,"tags": False, "cbp": False}
 
         self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "Only on Remote", "Deleted On Remote", "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
-        self.diffCommand = "tkdiff %1 %2"
-
+        if "diffCommand" in self.config:
+            self.diffCommand = self.config["diffCommand"]
+        else:
+            if sys.platform == "win32":
+                diffCommand = "C:\Program Files\TortoiseSVN\bin\TortoiseMerge.exe"
+                if os.path.exists(diffCommand):
+                    self.diffCommand = diffCommand + " %1 %2"
+            else:
+                self.diffCommand = "tkdiff %1 %2"
+                
         self.primaryBranches = []
         localPrim = ""
         if len(self.branches["local"]) == 1:
