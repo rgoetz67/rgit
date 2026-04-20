@@ -43,21 +43,28 @@ import numpy as np
 from PySide6.QtWidgets import *
 from PySide6.QtGui     import *
 from PySide6.QtCore    import *
+from functions import saveSettings
 
+
+tmpRepos = []
 
 class GitCallbacks(pygit2.RemoteCallbacks):
-    def __init__(self, user=None, token=None, pub_key=None, priv_key=None, passphrase=None):
+    def __init__(self, user=None, token=None, pub_key=None, priv_key=None,
+                 passphrase=None, password=None):
         self.user = user
         self.token = token
         self.pub_key = pub_key
         self.priv_key = priv_key
         self.passphrase = passphrase
+        self.password = password
 
     def credentials(self, url, username_from_url, allowed_types):
+        print(">>>>>> credentials :", allowed_types, "vs:",  pygit2.enums.CredentialType.USERPASS_PLAINTEXT)
         if allowed_types & pygit2.enums.CredentialType.USERNAME:
             return pygit2.Username(self.user)
         elif allowed_types & pygit2.enums.CredentialType.USERPASS_PLAINTEXT:
-            return pygit2.UserPass(self.user, self.token)
+            print(" -> USERPASS_PLAINTEXT '%s' '%s' " %(self.user, self.password))
+            return pygit2.UserPass(self.user, self.password)
         elif allowed_types & pygit2.enums.CredentialType.SSH_KEY:
             return pygit2.Keypair(username_from_url, self.pub_key, self.priv_key, self.passphrase)
         else:
@@ -101,13 +108,65 @@ statusNameMap = {"WT_MODIFIED"   : "MODIFIED",
                  }
                  
 
+class PasswordDialog(QDialog):
 
+    def __init__(self, msg=None):
+        super().__init__()
+        self.gbox = QGridLayout()
+        self.setLayout(self.gbox)
+        self.title = QLabel("Need a password to connect")
+        self.lUser = QLabel("Username = ")
+        self.user  = QLineEdit()
+        self.lPass = QLabel("Passord = ")
+        self.pwd   = QLineEdit()
+        self.msg   = QLabel("")
+        self.msg.setStyleSheet("QLabel {font-weight:bold; color:red}")
+        self.closeBtn  = QPushButton("Close")
+        self.cancelBtn = QPushButton("Cancel")
+        self.closeBtn.clicked.connect(self.closeDlg)
+        self.cancelBtn.clicked.connect(self.cancelDlg)
+        self.pwd.setMinimumWidth(240)
+
+        if msg is None:
+            self.msg.hide()
+        else:
+            self.msg.setText(msg)
+        
+        self.gbox.addWidget(self.title,     1, 1, 1, 3)            
+        self.gbox.addWidget(self.lUser,     2, 1, 1, 1)            
+        self.gbox.addWidget(self.user,      2, 2, 1, 2)            
+        self.gbox.addWidget(self.lPass,     3, 1, 1, 1)            
+        self.gbox.addWidget(self.pwd,       3, 2, 1, 2)            
+        self.gbox.addWidget(self.cancelBtn, 4, 1, 1, 1)            
+        self.gbox.addWidget(self.closeBtn,  4, 3, 1, 1)            
+        self.gbox.setColumnStretch(1,0)
+        self.gbox.setColumnStretch(2,1)
+        self.gbox.setColumnStretch(3,0)
+
+        self.setModal(True)
+        self.show()
+#       centerWindow(self)
+
+
+    def closeDlg(self ):
+        self.setResult(1)
+        self.done(1)
+        self.close()
+
+    def cancelDlg(self ):
+        self.setResult(0)
+        self.done(0)
+        self.close()
+
+
+    
 
 class RGitData():
 
-    def __init__(self, config,  repoPath, curBranch=None, forcedRebuild=False):
+    def __init__(self, config, creds, repoPath, curBranch=None, forcedRebuild=False):
         self.curBranch       = curBranch
         self.config          = config
+        self.creds           = creds
         #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
         
         # FXIME better detection of available ssh keys
@@ -129,11 +188,16 @@ class RGitData():
                 self.tmpRepoPath   = None
                 self.localRepoPath = re.sub(r"\\", "/", os.path.abspath(repoPath))
                 self.repoPath      = repoPath
+                self.authCallBack  = None
             else:
-                self.repo          = self.cloneTempRepo(repoPath)
+                self.repo, self.authCallBack  = self.cloneTempRepo(repoPath)
+                if self.repo is None:
+                    return
+                
                 self.localRepoPath = None
                 self.repoPath      = repoPath
 
+        
         self.remotes         = list(self.repo.remotes)
         self.branches        = {"local": list(self.repo.branches.local),
                                 "remote" : list(self.repo.branches.remote)}
@@ -194,6 +258,7 @@ class RGitData():
                         break
 
         self.curRemoteUrl    = self.repo.remotes[self.curRemote].url
+        self.authCallBack    = self.authCallBack or self.getAuthCallBack(self.curRemoteUrl)
         self.primaryBranches = [localPrim, remotePrim]
 
         t0 = time.time()
@@ -212,8 +277,28 @@ class RGitData():
         self.postProcess()
         self.saveCaches(self.primaryBranches, repoFiles=True)
         self.collectCommitMessages()
-        
-        
+
+
+    def getAuthCallBack(self, remoteRepoUrl):
+        if remoteRepoUrl in self.creds:
+            auth = self.creds[remoteRepoUrl]
+            if auth == "ssh":
+                authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+            else:
+                authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+        else:
+            # FIXME under windows use pass
+            authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+        return authCallBack
+
+    
+    def __cloneBySSH(self, repoUrl, authCallBack):
+        try:
+            return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
+                                         callbacks=authCallBack)
+        except pygit2.GitError as e:
+            return str(e)
+            
     def cloneTempRepo(self, repoUrl):
         self.repoUrl = repoUrl
         # FIXME use tyemp dir
@@ -232,12 +317,66 @@ class RGitData():
             tmpDir = "/home/goetz/tmp/.rgit/Rgit.tmp.%d" % os.getpid()
             self.tmpRepoPath = tmpDir + "/" +localName
         print("clone to ", self.tmpRepoPath, os.path.exists(self.tmpRepoPath))
-        return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
-                                       callbacks=GitCallbacks(user="git",
-                                                              priv_key = self.privKeyFile,
-                                                              pub_key  = self.publKeyFile))
 
-        
+        if repoUrl[:4] == "http":
+            if repoUrl in self.creds:
+                auth = self.creds[self.repoUrl]
+                authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+                try:
+                    repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
+                                                   callbacks=authCallBack)
+                    return repo, authCallBack
+                except pygit2.GitError as e:
+                    errMsg = str(e)
+            else:
+                dlg = PasswordDialog()
+                ret = dlg.exec()
+                if ret == 0:
+                    return None, None
+                auth = [dlg.user.text().strip("\n\r\t"), dlg.pwd.text().strip("\n\r\t")]
+                try:
+                    authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+                    repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
+                                                   callbacks=authCallBack)
+                    self.setCredentials(repoUrl, auth)
+                    return repo, authCallBack
+                except pygit2.GitError as e:
+                    errMsg = str(e)
+
+            while True:
+                if errMsg == "invalid argument: 'password'":
+                    dlg = PasswordDialog("Password wrong")
+                    ret = dlg.exec()
+                    if ret == 0:
+                        break
+                    auth = [dlg.user.text().strip("\n\r\t"), dlg.pwd.text().strip("\n\r\t")]
+
+                try:
+                    authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+                    repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
+                                                   callbacks=authCallBack)
+                    self.setCredentials(repoUrl, auth)
+                    return repo, authCallBack
+                except pygit2.GitError as e:
+                    errMsg = str(e)
+        else: # not http
+            authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+            try:
+                authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+                repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
+                                               callbacks=authCallBack)
+                self.setCredentials(repoUrl, "ssh")
+                return repo, authCallBack
+            except pygit2.GitError as e:
+                # Show error message
+                pass
+        return None, None
+
+
+    def setCredentials(self, repoUrl, auth):
+        self.creds[repoUrl] = auth
+        saveSettings(creds = self.creds)
+            
     def isRemoteOnly(self):
         return self.tmpRepoPath is not None
 
@@ -980,8 +1119,12 @@ class RGitData():
     def push(self, remote_name='origin', branch="main"):
         for remote in self.repo.remotes:
             if remote.name == remote_name:
-                remote.push(['refs/heads/'+branch],
-                            callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+                remote.push(['refs/heads/'+branch], callbacks = self.authCallBack)
+#                 if self.auth == "ssh":
+#                     cb = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+#                 else:
+#                     cb = GitCallbacks(user= self.auth[0], password=self.auth[1])
+#                 remote.push(['refs/heads/'+branch], callbacks = cb)
 
 
     def fetch(self, remote_name=None, branch=None):
@@ -992,7 +1135,8 @@ class RGitData():
         
         for remote in self.repo.remotes:
             if remote.name == remote_name:
-                remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+                remote.fetch( callbacks=self.authCallBack)
+                # remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
         for branch in self.primaryBranches:
             self.latestCommit[branch] = self.getBranchFiles(branch)
             self.collectCommits(branch)
@@ -1010,7 +1154,8 @@ class RGitData():
         
         for remote in self.repo.remotes:
             if remote.name == remote_name:
-                remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+                remote.fetch( callbacks=self.authCallBack)
+#                 remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
                 remote_master_id = self.repo.lookup_reference('refs/remotes/origin/%s' % (branch)).target
                 merge_result, _ = self.repo.merge_analysis(remote_master_id)
                 print("PULL: merge_result=",merge_result, merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE, merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD, merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)

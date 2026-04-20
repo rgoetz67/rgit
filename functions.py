@@ -18,6 +18,55 @@ from math import *
 # If started as program change stdout to liner buffering
 if __name__ == '__main__':
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+import json
+
+
+def configPath():
+    if sys.platform == "win32":
+        if "HOME" in os.environ:
+            confPath = os.environ["HOME"]+"\\.rgit\\config"
+            credPath = os.environ["HOME"]+"\\.rgit\\creds"
+        elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\config"
+            credPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\creds"
+        else:
+            confPath = ".rgit\\config"
+            credPath = ".rgit\\creds"
+    else:
+        confPath = os.environ["HOME"]+"/.rgit/config"
+        credPath = os.environ["HOME"]+"/.rgit/creds"
+    return confPath, credPath
+        
+def loadSettings():
+    confPath, credPath = configPath()
+    
+    config = {}
+    creds  = {}
+    if os.path.exists(confPath):
+        with open(confPath) as inp:
+            config = json.load(inp)
+    if os.path.exists(credPath):
+        with open(credPath) as inp:
+            creds = json.load(inp)
+    return config, creds
+
+
+def saveSettings(conf=None, creds=None):
+    confPath, credPath = configPath()
+
+    if not os.path.exists(os.path.dirname(confPath)):
+        os.makedirs(os.path.dirname(confPath))
+
+    if conf is not None:
+        if os.path.exists(os.path.dirname(confPath)):
+            with open(confPath, "w") as out:
+                json.dump(conf, out, indent=4)
+    if creds is not None:
+        if os.path.exists(os.path.dirname(credPath)):
+            with open(credPath, "w") as out:
+                json.dump(creds, out, indent=4)
+            
+
 
 
 def centerWindow(win, bySizeHint=False, ref=None):

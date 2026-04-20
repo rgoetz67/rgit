@@ -57,47 +57,13 @@ from browser   import OpenRepositoryDialog
 from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
+from functions import loadSettings, saveSettings
 import pygit2
 
 
 timFormat = "%Y-%m-%d %H:%M:%S"
 
 
-def loadSettings():
-    if sys.platform == "win32":
-        if "HOME" in os.environ:
-            confPath = os.environ["HOME"]+"\\.rgit\\config"
-        elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
-            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\config"
-        else:
-            confPath = ".rgit\\config"
-    else:
-        confPath = os.environ["HOME"]+"/.rgit/config"
-
-    if os.path.exists(confPath):
-        with open(confPath) as inp:
-            return json.load(inp)
-    return {}
-
-
-def saveSettings(conf):
-    if sys.platform == "win32":
-        if "HOME" in os.environ:
-            confPath = os.environ["HOME"]+"\\.rgit\\config"
-        elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
-            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit"
-        else:
-            confPath = ".rgit\\config"
-    else:
-        confPath = os.environ["HOME"]+"/.rgit/config"
-
-    if not os.path.exists(os.path.dirname(confPath)):
-        os.makedirs(os.path.dirname(confPath))
-
-    if os.path.exists(os.path.dirname(confPath)):
-        with open(confPath, "w") as out:
-            json.dump(conf, out, indent=4)
-            
 
 
 class RToolButton(QToolButton):
@@ -113,7 +79,7 @@ class RGitVersions(QMainWindow):
     def __init__(self, argv):
         super().__init__()
 
-        self.config = loadSettings()
+        self.config, self.creds = loadSettings()
         self.statusColor = {"CURRENT"           : "#FFFFFF",
                             "MODIFIED"          : "#FF8888",
                             "ADDED"             : "#FFBB88",
@@ -141,7 +107,7 @@ class RGitVersions(QMainWindow):
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
         if os.path.exists(".git"):
-            self.rgd         = RGitData(self.config, ".", "main")
+            self.rgd         = RGitData(self.config, self.creds, ".", "main")
             self.curBranch   = self.rgd.curBranch
         else:
             self.rgd         = None
@@ -448,7 +414,7 @@ class RGitVersions(QMainWindow):
 
     def switchRepo(self, repoType, repoPath):
         self.isFilled    = False
-        self.rgd         = RGitData(self.config, repoPath)
+        self.rgd         = RGitData(self.config, self.creds, repoPath)
         self.curBranch   = self.rgd.curBranch
         self.branchSelect.blockSignals(True)
         self.branchSelect.clear()
@@ -976,7 +942,7 @@ class RGitVersions(QMainWindow):
     def rebuildRGB(self):
         self.isFilled    = False
         curRepoPath      = self.rgd.repoPath
-        self.rgd         = RGitData(self.config, curRepoPath, forcedRebuild=True)
+        self.rgd         = RGitData(self.config, self.creds, curRepoPath, forcedRebuild=True)
         self.curBranch   = self.rgd.curBranch
         self.branchSelect.blockSignals(True)
         self.branchSelect.clear()
@@ -1034,7 +1000,7 @@ class RGitVersions(QMainWindow):
             repoName = repoName1 + " (%s) #%d" % (repoPath[0] , n)
             
         self.config["bookmarks"][repoName] = repoPath
-        saveSettings(self.config)
+        saveSettings(self.config, self.creds)
         
             
     
