@@ -552,9 +552,11 @@ class RGitVersions(QMainWindow):
 
         localFiles = []
         remoteOnlyFiles = []
-        if self.showLocal.isChecked():
-            extFilter  = self.__acceptedExtensions()
-            for f in glob.glob(folder + "/*"):
+        extFilter  = self.__acceptedExtensions()
+        for f in glob.glob(folder + "/*"):
+            if not os.path.isdir(f) and  self.rgd.isAdded(f):
+                localFiles.append(f)
+            elif self.showLocal.isChecked():
                 if f not in files:
                     if os.path.isdir(f):
                         localFiles.append(f+"/")
@@ -566,6 +568,27 @@ class RGitVersions(QMainWindow):
                         else:
                             if extFilter["."]:  # aka other files
                                 localFiles.append(f)
+
+        
+#         if self.showLocal.isChecked():
+#             extFilter  = self.__acceptedExtensions()
+#             for f in glob.glob(folder + "/*"):
+#                 if f not in files:
+#                     if os.path.isdir(f):
+#                         localFiles.append(f+"/")
+#                     else:
+#                         ext = os.path.splitext(f)[1]
+#                         if ext in extFilter:
+#                             if extFilter[ext]:
+#                                 localFiles.append(f)
+#                         else:
+#                             if extFilter["."]:  # aka other files
+#                                 localFiles.append(f)
+#         elif len(self.rgd.addedFiles)>0:
+#             for f in self.rgd.addedFiles:
+#                 if  f[:len(folder)] == folder:
+#                     if "/" not in f[len(folder)+1:] and f != folder:
+#                         localFiles.append(f)
         for f in self.rgd.remoteOnlyFiles:
             if  f[:len(folder)] == folder:
                 if f not in files:
@@ -668,6 +691,8 @@ class RGitVersions(QMainWindow):
         else:
             self.dirTree.setCurrentItem(self.rootItem)
             self.showFiles(self.rootItem)
+        self.resizeDirTree()
+        self.resizeFileTree()
         
 
     def refreshStatus(self, allCommits = False):
@@ -716,7 +741,7 @@ class RGitVersions(QMainWindow):
                 item.setText(1, status)
                 self.colorizeTreeItem(item, status)
                 self.statusCache[f] = status
-
+        self.resizeFileTree()
 #        print("  refreshStatus   done after %7.2fs %7.2fs" %(t1-t0, time.time() -t0))
 
     def colorizeTreeItem(self, item, status):
@@ -742,9 +767,10 @@ class RGitVersions(QMainWindow):
 
 
     def doAddFile(self):
-        print("add  ", self.curContextItem.text(0))
+        # print("add  ", self.curContextItem.text(0))
         f = self.curContextItem.text(0)
         self.rgd.addFile(f)
+        self.refreshStatus()
         self.refreshTrees()
 
 
@@ -752,13 +778,16 @@ class RGitVersions(QMainWindow):
         print("delete  ", self.curContextItem.text(0))
         f = self.curContextItem.text(0)
         self.rgd.deleteFile(f)
+        self.refreshStatus()
         self.refreshTrees()
+
 
     def doRestoreFile(self, f = None):
         if f is None or not isinstance(f, str):
             print("restore  ", self.curContextItem.text(0))
             f = self.curContextItem.text(0)
         self.rgd.restoreFile(f)
+        self.refreshStatus()
         self.refreshTrees()
 
 
@@ -778,6 +807,7 @@ class RGitVersions(QMainWindow):
             self.__doCommit(files, push=False)
         else:
             self.__doCommit(self.__getCommitFilesFromFileItem(item), push=False)
+
 
     def doCommitAndPushFromContext(self, item):
         if len(self.fileTree.selectedItems())>0:
@@ -814,6 +844,8 @@ class RGitVersions(QMainWindow):
                     for f2 in self.__collectModifiedFiles4Commit( branch, path):
                         if f2 not in files:
                             files.append(f2)
+            for f in self.rgd.addedFiles:
+                files.append(f)
         else:
             for item in sel2:
                 for f in self.__getCommitFilesFromFileItem(item):

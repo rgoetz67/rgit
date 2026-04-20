@@ -149,6 +149,7 @@ class RGitData():
         self.copies       = {}
         self.tags         = {}
         self.latestCommit = {}
+        self.addedFiles   = set()
         self.dirStatusCache = {}
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False, "cbp": False}
@@ -436,7 +437,8 @@ class RGitData():
         walker = self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME )
         self.lastCommitMessages = []
         for commit in walker:
-            self.lastCommitMessages.append(commit.message)
+            if len(self.lastCommitMessages) == 0 or commit.message != self.lastCommitMessages[-1]:
+                self.lastCommitMessages.append(commit.message)
             if len(self.lastCommitMessages) >n:
                 break
  
@@ -665,13 +667,23 @@ class RGitData():
         if status in ["WT_MODIFIED", "INDEX_NEW", "INDEX_DELETED|WT_NEW", "INDEX_DELETED"]:
             return True
         return False
+
+
+    def isAdded(self, path):
+        if path[:2] == "./":
+            status = self.repo.status_file(path[2:]).name
+        else:
+            status = self.repo.status_file(path).name
+        if status in ["INDEX_NEW"]:
+            if path not in self.addedFiles:
+                self.addedFiles.add(path)
+            return True
+        return False
     
+
     def getFileStatus(self, branchOrId, path):
         global statusNameMap
-        if "dummy" in path:
-            print("\t getFileStatus :", path, path in self.remoteOnlyFiles, len(self.remoteOnlyFiles))
         if path in self.remoteOnlyFiles:
-#         if remoteOnly:            
              return "Only On Remote"
          
         if branchOrId in self.branches["all"]:
@@ -875,7 +887,7 @@ class RGitData():
             elif lastBefore is not None:
                 commits = [ c[0]   for c in self.commitByBlob[blobId]   if c[1]<=lastBefore]
                 if len(commits)>0:
-                    return commits[-1]  # lasy before
+                    return commits[-1]  # last before
             return self.commitByBlob[blobId][-1][0]
         print("  NO COMMIT FOR ",  blobId)
         return None
@@ -925,7 +937,9 @@ class RGitData():
         user = self.repo.default_signature
         tree      = index.write_tree()
         new_commit = self.repo.create_commit(ref, user, user, message, tree, parents)
-        self.lastCommitMessages = [message] + self.lastCommitMessages
+        if len(self.lastCommitMessages) ==0 or message != self.lastCommitMessages[0]:
+            self.lastCommitMessages = [message] + self.lastCommitMessages
+        self.addedFiles= set()
         print(">>>>> NEW COMMIT = ", new_commit)
         if pushToRemote:
             self.push()
@@ -1024,11 +1038,12 @@ class RGitData():
         else:
             self.repo.index.add(f)
         self.repo.index.write()
+        self.addedFiles.add(f)
         for branch in self.primaryBranches:
             self.latestCommit[branch] = self.getBranchFiles(branch)
             self.collectCommits(branch,verbose = True)
         self.postProcess()
-#         self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
+
 
         
     def deleteFile(self, f):
