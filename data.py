@@ -89,7 +89,7 @@ class GitCallbacks(pygit2.RemoteCallbacks):
     # branchCache : firstCommitOfBlob allCommitIds  
     
 
-
+        
 preferedPrimaryBranchNames = ["trunk", "main", "HEAD", "head", "master"]
 preferedRemotePrefixes     = ["origin", "master"]
 
@@ -217,15 +217,25 @@ class RGitData():
     def cloneTempRepo(self, repoUrl):
         self.repoUrl = repoUrl
         # FIXME use tyemp dir
-        tmpDir = "/home/goetz/tmp/.rgit/Rgit.tmp.%d" % os.getpid()
-     #   repoPath ="ssh://git@git.lemna.lemnatec.de:2222/goetz/LemnaGridNeXt.git"
-        localName = re.sub(r".git$","", os.path.basename(repoUrl))
-        self.tmpRepoPath = tmpDir + "/" +localName
+        localName = re.sub(r".git$","", os.path.basename(repoUrl)) 
+        if sys.platform == "win32":
+            if "HOME" in os.environ:
+                tmpDir = os.environ["HOME"]+"\\.rgit\\remotes"
+            elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+                tmpDir = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\remotes"
+            else:
+                tmpDir = ".rgit\\remotes"
+            tmpDir += "\\%d.%d" %(os.getpid(), time.time())
+            self.tmpRepoPath = tmpDir + "\\" +localName
+            os.makedirs(tmpDir)
+        else:
+            tmpDir = "/home/goetz/tmp/.rgit/Rgit.tmp.%d" % os.getpid()
+            self.tmpRepoPath = tmpDir + "/" +localName
         print("clone to ", self.tmpRepoPath, os.path.exists(self.tmpRepoPath))
         return pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
-                                        callbacks=GitCallbacks(user="git",
-                                                               priv_key = self.privKeyFile,
-                                                               pub_key  = self.publKeyFile))
+                                       callbacks=GitCallbacks(user="git",
+                                                              priv_key = self.privKeyFile,
+                                                              pub_key  = self.publKeyFile))
 
         
     def isRemoteOnly(self):
@@ -679,11 +689,18 @@ class RGitData():
 
 
     def isAdded(self, path):
+        
         if path[:2] == "./":
-            status = self.repo.status_file(path[2:]).name
+            f = path[2:]
         else:
-            status = self.repo.status_file(path).name
-        if status in ["INDEX_NEW"]:
+            f = path
+        statusObj = None
+        try:
+            statusObj = self.repo.status_file(path[2:])
+        except:
+            # if we can't obtain a status the file is not added
+            return False
+        if statusObj.name in ["INDEX_NEW"]:
             if path not in self.addedFiles:
                 self.addedFiles.add(path)
             return True

@@ -68,7 +68,7 @@ def loadSettings():
         if "HOME" in os.environ:
             confPath = os.environ["HOME"]+"\\.rgit\\config"
         elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
-            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit"
+            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\config"
         else:
             confPath = ".rgit\\config"
     else:
@@ -543,7 +543,7 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        # print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]

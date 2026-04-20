@@ -146,17 +146,40 @@ class OpenRepositoryDialog(QFrame):
         self.repoUrl = QLineEdit("")
         self.checkRepo = QPushButton("Check")
         self.checkRepo.setEnabled(False)
+        self.repoUrl.textChanged.connect(self.checkUrl1)
 
+        self.remMsg = QLabel("")
+        self.remMsg.setStyleSheet("QLabel {font-size:12px; font-weight:bold; color:red}")
+        
         self.rbox.addWidget(l,              2, 1, 1, 1)
         self.rbox.addWidget(self.repoUrl,   2, 2, 1, 1)
         self.rbox.addWidget(self.checkRepo, 2, 3, 1, 1)
+        self.rbox.addWidget(self.remMsg,    3, 1, 1, 3, Qt.AlignHCenter)
         self.rbox.setColumnStretch(1,0)
         self.rbox.setColumnStretch(2,1)
         self.rbox.setColumnStretch(3,0)
         self.rbox.setRowStretch(1,1)
         self.rbox.setRowStretch(2,0)
-        self.rbox.setRowStretch(3,99)
+        self.rbox.setRowStretch(3, 0)
+        self.rbox.setRowStretch(4,99)
         return f
+
+    def checkUrl1(self, t):
+        ml = []
+        gitMsg =False
+        if len(t)>4:
+            if "@" in t:
+                ml.append("Url looks like an ssh URL. This works only if you have a working ssh key at the remote side")
+                gitMsg =True
+        if len(t)>8:
+            if not (t[:7] in ["https:/" , "http://"]) and not gitMsg:
+                ml.append("Url looks like an ssh URL. This works only if you have a working ssh key at the remote side")
+        if len(t)>16:
+            if t[-4:] != ".git":
+                ml.append("Url must end with '.git'")
+        self.remMsg.clear()
+        self.remMsg.setText("\n".join(ml))
+    
 
 
 
