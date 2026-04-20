@@ -7,7 +7,13 @@ else
     VN=""
 fi
 
-P=`dirname $0`
+if [ -L $0 ]
+then
+    S=`readlink $0`
+    P=`dirname $S`
+else
+    P=`dirname $0`
+fi
 
 if [ "$VN" != "rg" ]
 then
