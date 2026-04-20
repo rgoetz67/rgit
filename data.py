@@ -48,6 +48,15 @@ from functions import saveSettings
 
 tmpRepos = []
 
+
+
+# def cleanOnExit():
+#     global tmpRepos
+
+#     for d in tmpRepos:
+#         print(" remove ", d)
+
+    
 class GitCallbacks(pygit2.RemoteCallbacks):
     def __init__(self, user=None, token=None, pub_key=None, priv_key=None,
                  passphrase=None, password=None):
@@ -59,11 +68,11 @@ class GitCallbacks(pygit2.RemoteCallbacks):
         self.password = password
 
     def credentials(self, url, username_from_url, allowed_types):
-        print(">>>>>> credentials :", allowed_types, "vs:",  pygit2.enums.CredentialType.USERPASS_PLAINTEXT)
+#        print(">>>>>> credentials :", allowed_types, "vs:",  pygit2.enums.CredentialType.USERPASS_PLAINTEXT)
         if allowed_types & pygit2.enums.CredentialType.USERNAME:
             return pygit2.Username(self.user)
         elif allowed_types & pygit2.enums.CredentialType.USERPASS_PLAINTEXT:
-            print(" -> USERPASS_PLAINTEXT '%s' '%s' " %(self.user, self.password))
+          #  print(" -> USERPASS_PLAINTEXT '%s' '%s' " %(self.user, self.password))
             return pygit2.UserPass(self.user, self.password)
         elif allowed_types & pygit2.enums.CredentialType.SSH_KEY:
             return pygit2.Keypair(username_from_url, self.pub_key, self.priv_key, self.passphrase)
@@ -119,6 +128,7 @@ class PasswordDialog(QDialog):
         self.user  = QLineEdit()
         self.lPass = QLabel("Passord = ")
         self.pwd   = QLineEdit()
+        self.pwd.setEchoMode(QLineEdit.Password)
         self.msg   = QLabel("")
         self.msg.setStyleSheet("QLabel {font-weight:bold; color:red}")
         self.closeBtn  = QPushButton("Close")
@@ -182,6 +192,7 @@ class RGitData():
             self.privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
             self.publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
 
+        self.failedToOpen = False
         if isinstance(repoPath, str):
             if os.path.exists(repoPath):
                 self.repo          = pygit2.Repository(repoPath)
@@ -192,6 +203,7 @@ class RGitData():
             else:
                 self.repo, self.authCallBack  = self.cloneTempRepo(repoPath)
                 if self.repo is None:
+                    self.failedToOpen = True
                     return
                 
                 self.localRepoPath = None
@@ -318,6 +330,8 @@ class RGitData():
             self.tmpRepoPath = tmpDir + "/" +localName
         print("clone to ", self.tmpRepoPath, os.path.exists(self.tmpRepoPath))
 
+        print(":::::", id(self.creds))
+        print(":::::", self.creds)
         if repoUrl[:4] == "http":
             if repoUrl in self.creds:
                 auth = self.creds[self.repoUrl]
@@ -325,40 +339,16 @@ class RGitData():
                 try:
                     repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
                                                    callbacks=authCallBack)
+                    self.setCredentials(repoUrl, auth)
                     return repo, authCallBack
                 except pygit2.GitError as e:
+                    self.failMessage="Authentication failed"
+                    print(" >> GitError :", e)
                     errMsg = str(e)
-            else:
-                dlg = PasswordDialog()
-                ret = dlg.exec()
-                if ret == 0:
                     return None, None
-                auth = [dlg.user.text().strip("\n\r\t"), dlg.pwd.text().strip("\n\r\t")]
-                try:
-                    authCallBack = GitCallbacks(user= auth[0], password=auth[1])
-                    repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
-                                                   callbacks=authCallBack)
-                    self.setCredentials(repoUrl, auth)
-                    return repo, authCallBack
-                except pygit2.GitError as e:
-                    errMsg = str(e)
-
-            while True:
-                if errMsg == "invalid argument: 'password'":
-                    dlg = PasswordDialog("Password wrong")
-                    ret = dlg.exec()
-                    if ret == 0:
-                        break
-                    auth = [dlg.user.text().strip("\n\r\t"), dlg.pwd.text().strip("\n\r\t")]
-
-                try:
-                    authCallBack = GitCallbacks(user= auth[0], password=auth[1])
-                    repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
-                                                   callbacks=authCallBack)
-                    self.setCredentials(repoUrl, auth)
-                    return repo, authCallBack
-                except pygit2.GitError as e:
-                    errMsg = str(e)
+                except:
+                    self.failMessage="Other Error"
+                    return None, None
         else: # not http
             authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
             try:
@@ -368,8 +358,9 @@ class RGitData():
                 self.setCredentials(repoUrl, "ssh")
                 return repo, authCallBack
             except pygit2.GitError as e:
-                # Show error message
-                pass
+                self.failMessage="Authentication failed"
+                return None, None
+        self.failMessage="Unknown Error"
         return None, None
 
 

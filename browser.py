@@ -51,10 +51,11 @@ class EmbeddedFileDialog(QFileDialog):
 
 
 class OpenRepositoryDialog(QFrame):
-    openRepository = Signal(str, str)
-    def __init__(self, pwin):
+    openRepository = Signal(str, str )
+    def __init__(self, pwin, creds):
         super().__init__()
-        self.pwin =pwin
+        self.pwin  = pwin
+        self.creds = creds
         self.selectedRepo = None
         
         self.gbox = QGridLayout()
@@ -103,8 +104,14 @@ class OpenRepositoryDialog(QFrame):
                 item = QTreeWidgetItem([name, rp[0], rp[1]])
                 self.bookmarks.addTopLevelItem(item)
 
-        
+        self.msgBM    = QLabel("")
+        self.msgBM.setStyleSheet("QLabel {font-size:14px; font-weight:bold}")
+
         self.bbox.addWidget(self.bookmarks, 1,1,1,1)
+        self.bbox.addWidget(self.msgBM,     2,1,1,1)
+        self.bbox.setRowStretch(1,1)
+        self.bbox.setRowStretch(2,0)
+        self.bbox.setRowStretch(3,0)
         self.bookmarks.resizeColumnToContents(0)
         self.bookmarks.resizeColumnToContents(1)
 
@@ -144,25 +151,42 @@ class OpenRepositoryDialog(QFrame):
 
         l = QLabel ("URL of remote repository: ")
         self.repoUrl = QLineEdit("")
-        self.checkRepo = QPushButton("Check")
-        self.checkRepo.setEnabled(False)
+    #   self.checkRepo = QPushButton("Check")
+    #   self.checkRepo.setEnabled(False)
         self.repoUrl.textChanged.connect(self.checkUrl1)
 
+
+        self.lUser = QLabel("  Username : ")
+        self.lPass = QLabel("  Password : ")
+        self.user  = QLineEdit()
+        self.pwd   = QLineEdit()
+        self.pwd.setEchoMode(QLineEdit.Password)
+        if "USER" in os.environ:
+            self.user.setText(os.environ["USER"])
+        
         self.remMsg = QLabel("")
         self.remMsg.setStyleSheet("QLabel {font-size:12px; font-weight:bold; color:red}")
         
         self.rbox.addWidget(l,              2, 1, 1, 1)
-        self.rbox.addWidget(self.repoUrl,   2, 2, 1, 1)
-        self.rbox.addWidget(self.checkRepo, 2, 3, 1, 1)
-        self.rbox.addWidget(self.remMsg,    3, 1, 1, 3, Qt.AlignHCenter)
+        self.rbox.addWidget(self.repoUrl,   2, 2, 1, 2)
+        #   self.rbox.addWidget(self.checkRepo, 2, 3, 1, 1)
+        self.rbox.addWidget(self.lUser,     3, 1, 1, 1)
+        self.rbox.addWidget(self.user,      3, 2, 1, 2)
+        self.rbox.addWidget(self.lPass,     4, 1, 1, 1)
+        self.rbox.addWidget(self.pwd,       4, 2, 1, 2)
+
+        self.rbox.addWidget(self.remMsg,    5, 1, 1, 3, Qt.AlignHCenter)
         self.rbox.setColumnStretch(1,0)
         self.rbox.setColumnStretch(2,1)
         self.rbox.setColumnStretch(3,0)
         self.rbox.setRowStretch(1,1)
         self.rbox.setRowStretch(2,0)
         self.rbox.setRowStretch(3, 0)
-        self.rbox.setRowStretch(4,99)
+        self.rbox.setRowStretch(4, 0)
+        self.rbox.setRowStretch(5, 0)
+        self.rbox.setRowStretch(6,99)
         return f
+    
 
     def checkUrl1(self, t):
         ml = []
@@ -179,33 +203,49 @@ class OpenRepositoryDialog(QFrame):
                 ml.append("Url must end with '.git'")
         self.remMsg.clear()
         self.remMsg.setText("\n".join(ml))
-    
 
+        if t in self.creds:
+            self.user.setText(self.creds[t][0])
+            self.pwd.setText(self.creds[t][1])
+            
 
-
-    def openBookMark(self):
-        pass
+    def setMessage4remoterepo(self, msg):
+        print(">>>>>", msg)
+        self.remMsg.setText(msg)
+        if self.tab.currentIndex() == 0:
+            if self.newRepoType == "remote":
+                self.repoUrl.setText(self.newRepoPath)
+                if self.newRepoPath in self.creds:
+                    auth = self.creds[self.newRepoPath]
+                    self.user.setText(auth[0])
+                    self.pwd.setText(auth[1])
+                    self.tab.setCurrentIndex(2)
+                    self.remMsg.setText(msg)
+        
 
     def openRepo(self):
         #        print(self.tab.tabText(self.tab.currentIndex()), self.tab.currentIndex())
         if self.tab.currentIndex() == 2:
             self.msg.setText("Retrieve remote repository data")
             self.msg.show()
+            self.creds[self.repoUrl.text()] =[self.user.text(), self.pwd.text()]
             QApplication.processEvents()
             self.openRepository.emit("remote", self.repoUrl.text())
         elif self.tab.currentIndex() == 1:
             sel =self.select.selectedFiles()
             if len(sel)>0:
                 self.openRepository.emit("local",  sel[0])
+            self.close()
         elif self.tab.currentIndex() == 0:
             selItems = self.bookmarks.selectedItems()
             if len(selItems)>0:
-                repoType = selItems[0].text(1)
-                repoPath = selItems[0].text(2)
-                if repoType == "local":
-                    os.chdir(repoPath)
-                self.openRepository.emit(repoType, repoPath)
-        self.close()
+                self.newRepoType = selItems[0].text(1)
+                self.newRepoPath = selItems[0].text(2)
+                if self.newRepoType == "local":
+                    os.chdir(self.newRepoPath)
+                self.msgBM.setText("Retrieve remote repository data")
+                QApplication.processEvents()
+                self.openRepository.emit(self.newRepoType, self.newRepoPath)
 
     
     def quit(self):

@@ -415,6 +415,16 @@ class RGitVersions(QMainWindow):
     def switchRepo(self, repoType, repoPath):
         self.isFilled    = False
         self.rgd         = RGitData(self.config, self.creds, repoPath)
+        if self.repoDlg.isVisible():
+            if self.rgd.failedToOpen:
+                self.repoDlg.setMessage4remoterepo(self.rgd.failMessage)
+                return
+            else:
+                self.repoDlg.close()
+        if self.rgd.failedToOpen:
+            #FIXME Dialog
+            pass
+            
         self.curBranch   = self.rgd.curBranch
         self.branchSelect.blockSignals(True)
         self.branchSelect.clear()
@@ -900,7 +910,7 @@ class RGitVersions(QMainWindow):
 
 
     def openRepo(self):
-        self.repoDlg = OpenRepositoryDialog(self)
+        self.repoDlg = OpenRepositoryDialog(self, self.creds)
         self.repoDlg.openRepository.connect(self.switchRepo)
         
 
