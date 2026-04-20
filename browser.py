@@ -32,6 +32,8 @@ from functions import centerWindow
 class EmbeddedFileDialog(QFileDialog):
     def __init__(self, *args, **kwargs):
         super().__init__( *args, **kwargs)
+        if sys.platform == "win32":
+            self.setOptions(QFileDialog.DontUseNativeDialog)
 
         gbox = self.layout()
         for r in range( gbox.rowCount()):
