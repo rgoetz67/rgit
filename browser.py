@@ -151,16 +151,15 @@ class OpenRepositoryDialog(QFrame):
 
         l = QLabel ("URL of remote repository: ")
         self.repoUrl = QLineEdit("")
-    #   self.checkRepo = QPushButton("Check")
-    #   self.checkRepo.setEnabled(False)
         self.repoUrl.textChanged.connect(self.checkUrl1)
-
-
         self.lUser = QLabel("  Username : ")
         self.lPass = QLabel("  Password : ")
         self.user  = QLineEdit()
         self.pwd   = QLineEdit()
         self.pwd.setEchoMode(QLineEdit.Password)
+        iconPath = os.path.dirname(__file__) + "/icons/eye-solid-full.svg"
+        self.pwdAction = self.pwd.addAction(QIcon(iconPath), QLineEdit.TrailingPosition)
+        self.pwdAction.triggered.connect(self.showPassword)
         if "USER" in os.environ:
             self.user.setText(os.environ["USER"])
         
@@ -207,10 +206,16 @@ class OpenRepositoryDialog(QFrame):
         if t in self.creds:
             self.user.setText(self.creds[t][0])
             self.pwd.setText(self.creds[t][1])
+
             
+    def showPassword(self):
+        if self.pwd.echoMode() == QLineEdit.Password:
+            self.pwd.setEchoMode(QLineEdit.Normal)
+        else:
+            self.pwd.setEchoMode(QLineEdit.Password)
+
 
     def setMessage4remoterepo(self, msg):
-        print(">>>>>", msg)
         self.remMsg.setText(msg)
         if self.tab.currentIndex() == 0:
             if self.newRepoType == "remote":
