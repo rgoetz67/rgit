@@ -138,6 +138,7 @@ class RGitData():
                                 "remote" : list(self.repo.branches.remote)}
         self.branches["all"] = self.branches["local"] + self.branches["remote"]
         self.repoFiles    = {}
+        self.remoteOnlyFiles = []
         self.branchFiles  = defaultdict(dict)
         self.indexFiles   = defaultdict(dict)
         self.allCommitIds = defaultdict(set)
@@ -152,7 +153,7 @@ class RGitData():
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False, "cbp": False}
 
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
+        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "Only on Remote", "Deleted On Remote", "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
         self.diffCommand = "tkdiff %1 %2"
 
         self.primaryBranches = []
@@ -414,20 +415,7 @@ class RGitData():
         # print(" --- postProcess update cbb: ",  len(self.repoFiles["./justfile"]["commits"]))
         for path in self.repoFiles:
             for cid, cts, eid, _ in self.repoFiles[path]["commits"]:
-#                 if path == "./justfile":
-#                     print("\t postProcess : add ", eid,"::", cid, cts)
                 self.commitByBlob[eid].append([cid, cts])
-#         allReferecesCommitIds = set([c[0]    for v in self.commitByBlob.values()   for c in v])
-#         # print(allReferecesCommitIds)
-#         missingCommits = set()
-#         for branch in self.allCommitIds:
-#             for cid in self.allCommitIds[branch]:
-#                 if cid not in allReferecesCommitIds:
-#                     missingCommits.add(cid)
-#         for cid in missingCommits:
-#             commit = self.repo.get(cid)
-#             print("\t\t refetch ", cid)
-#             #            self.collectBlobsFromTree( branchName, commit.tree, commit, ".")
             
         for p in self.repoFiles:
             for commitId, _cts, blobId, path in self.repoFiles[p]["commits"]:
@@ -435,8 +423,13 @@ class RGitData():
 
         for eid in self.commitByBlob:
             self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
-#         if len(missingCommits)>0 and retry ==0:
-#             self.postProcess(1)
+
+        self.remoteOnlyFiles = []
+        for f in self.branchFiles[self.curRemoteBranch]:
+            if f not in self.branchFiles[self.curBranch]:
+                self.remoteOnlyFiles.append(f)
+ 
+
 
 
     def collectCommitMessages(self, n=32):
@@ -673,11 +666,14 @@ class RGitData():
             return True
         return False
     
-    def getFileStatus(self, branchOrId, path, remoteOnly = False):
+    def getFileStatus(self, branchOrId, path):
         global statusNameMap
-        if remoteOnly:
-            
-            return "Only On Remote"
+        if "dummy" in path:
+            print("\t getFileStatus :", path, path in self.remoteOnlyFiles, len(self.remoteOnlyFiles))
+        if path in self.remoteOnlyFiles:
+#         if remoteOnly:            
+             return "Only On Remote"
+         
         if branchOrId in self.branches["all"]:
             eid    = self.branchFiles[branchOrId][path]["id"]
         else:
@@ -690,13 +686,23 @@ class RGitData():
         status = statusNameMap.get(status, status)
         
         updateAvailable = False
+        missingOnRemote = False
         if path in self.branchFiles[self.curRemoteBranch]:
             
             if     self.branchFiles[self.curRemoteBranch][path]["id"] != \
                    self.branchFiles[self.curBranch][path]["id"]:
                 updateAvailable = True
-            
-        if path in self.repoFiles:
+        else:
+            if status == "CURRENT":
+                status="Deleted on Remote"
+            elif status ==  "WT_MODIFIED":
+                status="CONFLICT"
+            elif status not in ["ADDED",  "INDEX_NEW"]:
+                status+=" and Remote Deletion"
+                print("  \t\t ", path, " updated  but local says = ", status)
+
+
+        if path in self.repoFiles and not missingOnRemote:
             if "lastCommit" not in self.repoFiles[path] :
                 status = "Not Commited"
             elif updateAvailable:
@@ -714,9 +720,9 @@ class RGitData():
         self.dirStatusCache = {}
     
 
-    def getDirStatus(self, branch, path, verbose=False, useDirStatusCache=False,remoteOnly=False ):
-        if remoteOnly:
-            return  "Only On Remote"
+    def getDirStatus(self, branch, path, verbose=False, useDirStatusCache=False ):
+        if path in self.remoteOnlyFiles:
+             return "Only On Remote"
 
         statusDict = self.__getDirStatus(branch,  path, useDirStatusCache=useDirStatusCache)
         nStat      =  np.sum(np.array(list(statusDict.values())))

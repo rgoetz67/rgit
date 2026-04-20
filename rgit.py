@@ -114,14 +114,16 @@ class RGitVersions(QMainWindow):
         super().__init__()
 
         self.config = loadSettings()
-        self.statusColor = {"CURRENT"       : "#FFFFFF",
-                            "MODIFIED"      : "#FF8888",
-                            "ADDED"         : "#FFBB88",
-                            "DELETED"       : "#EE7777",
-                            "Remote Update" : "#AAFFAA",
-                            "CONFLICT"      : "#FFCC88",
-                            "Not Commited"  : "#CC88FF",
-                            "not versioned" : "#F4F0F0",
+        self.statusColor = {"CURRENT"           : "#FFFFFF",
+                            "MODIFIED"          : "#FF8888",
+                            "ADDED"             : "#FFBB88",
+                            "DELETED"           : "#EE7777",
+                            "Deleted on Remote" : "#CCEE66",
+                            "Remote Update"     : "#AAFFAA",
+                            "Only On Remote"    : "#AAFF99",
+                            "CONFLICT"          : "#FFCC88",
+                            "Not Commited"      : "#CC88FF",
+                            "not versioned"     : "#F4F0F0",
                             "removed from Repo" : "#F8ECEC",
 #                             "" : "",
 #                             "" : "",
@@ -130,9 +132,11 @@ class RGitVersions(QMainWindow):
                             "MODIFIED ++"   : "#FF4444",
                             "ADDED ++"      : "#FFCC44",
                             "DELETED ++"    : "#DD4444",
-                            "Remote Update ++" : "#AAFF66",
-                            "CONFLICT ++ "     : "#FFDD44",
-                            "Not Commited ++"  : "#CC88FF",
+                            "Deleted on Remote ++" : "#CCEE44",
+                            "Remote Update ++"     : "#AAFF66",
+                            "Only On Remote ++"    : "#AAFF55",
+                            "CONFLICT ++ "         : "#FFDD44",
+                            "Not Commited ++"      : "#CC88FF",
                             "Unknown ++": "#FF44FF ++ ",
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
@@ -539,7 +543,7 @@ class RGitVersions(QMainWindow):
 
     def fillFileList(self, parentItem):
         # FIXME merge local files
-        # print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
+        print(">>>>", parentItem, parentItem.data(0, Qt.UserRole))
         self.fileItems = []
         self.fileTree.clear()
         files  = parentItem.data(0, Qt.UserRole)[0]["files"]
@@ -562,12 +566,14 @@ class RGitVersions(QMainWindow):
                         else:
                             if extFilter["."]:  # aka other files
                                 localFiles.append(f)
-        for f in self.rgd.branchFiles[self.rgd.curRemoteBranch]:
-            if  f[len(folder):] == folder:
+        for f in self.rgd.remoteOnlyFiles:
+            if  f[:len(folder)] == folder:
                 if f not in files:
                     if "/" not in f[len(folder)+1:] and f != folder:
                         remoteOnlyFiles.append(f)
-        
+        # print(">>>  files      ", files)
+        # print(">>>  remote only", remoteOnlyFiles)
+        # print(">>>  local  only", localFiles)
         allFiles = files + localFiles + remoteOnlyFiles
 
         for f in sorted(allFiles):
@@ -583,13 +589,13 @@ class RGitVersions(QMainWindow):
 
                 if len(e["files"])>0:
                     fname  = os.path.basename(f) +"/"
-                    status = self.rgd.getDirStatus(branch, f, remoteOnly = f in remoteOnlyFiles)
+                    status = self.rgd.getDirStatus(branch, f)
                     self.statusCache[f] = status
                     obj    = self.rgd.repo.get(e["id"])
 
                 else:
                     fname = os.path.basename(f)
-                    status = self.rgd.getFileStatus(eid, f, remoteOnly = f in remoteOnlyFiles)
+                    status = self.rgd.getFileStatus(eid, f)
 
                 branches = self.rgd.getBranchesForPath(f)
 
@@ -669,7 +675,7 @@ class RGitVersions(QMainWindow):
             return
         self.rgd.fetch()
         t0 =time.time()
-        # print("  refreshStatus  ")
+        print("  refreshStatus  ")
         # FIXME tree like dir state update
         p = self.dirStatusRefreshPointer
         if not allCommits:
@@ -702,6 +708,8 @@ class RGitVersions(QMainWindow):
                     status = self.rgd.getDirStatus(branch, f, verbose=False, useDirStatusCache = True)
                 else:
                     status = self.rgd.getFileStatus(eid, f)
+            elif f in self.rgd.remoteOnlyFiles:
+                status = self.rgd.getFileStatus(eid, f)
             else:
                 status = "not versioned"
             if status != self.statusCache.get(f, ""):
@@ -713,11 +721,13 @@ class RGitVersions(QMainWindow):
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
+            print(">>>>>>>>", item.text(0), "'%s'" % status, status in self.statusColor,"\n\t", self.statusColor.keys())
             if status in self.statusColor:
                 self.setFileTreeItemColor(item, self.statusColor[status])
             else:
                 self.setFileTreeItemColor(item, self.statusColor["Unknown"])
-
+        else:
+            self.setFileTreeItemColor(item, "#FFFFFF")
 
     def setFileTreeItemColor(self, item, color):
         for c  in range(self.fileTree.columnCount()):
