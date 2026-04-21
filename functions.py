@@ -55,21 +55,44 @@ baseStyle += "\n"
 timFormat = "%Y-%m-%d %H:%M:%S"
 
 
-def configPath():
+
+def rgitBasePath():
     if sys.platform == "win32":
         if "HOME" in os.environ:
-            confPath = os.environ["HOME"]+"\\.rgit\\config"
-            credPath = os.environ["HOME"]+"\\.rgit\\creds"
+            rgitPath = os.environ["HOME"]+"\\.rgit"
+
         elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
-            confPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\config"
-            credPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit\\creds"
+            rgitPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.rgit"
         else:
-            confPath = ".rgit\\config"
-            credPath = ".rgit\\creds"
+            rgitPath = ".rgit"
     else:
-        confPath = os.environ["HOME"]+"/.rgit/config"
-        credPath = os.environ["HOME"]+"/.rgit/creds"
+        rgitPath = os.environ["HOME"]+"/.rgit"
+    return rgitPath
+
+
+def globalTmpPath():
+    if sys.platform == "win32":
+        rgitPath = rgitBasePath()
+        tmpPath = rgitPath+"\\tmp"
+        if not os.path.exists(tmpPath):
+            os.makedirs(tmpPath)
+    else:
+        tmpPath =- "/tmp"
+    return tmpPath 
+    
+
+def configPath():
+    
+    if sys.platform == "win32":
+        rgitPath = rgitBasePath()
+        confPath = rgitPath+"\\config"
+        credPath = rgitPath+"\\creds"
+    else:
+        rgitPath = rgitBasePath()
+        confPath = rgitPath+"/config"
+        credPath = rgitPath+"/creds"
     return confPath, credPath
+        
         
 def loadSettings():
     confPath, credPath = configPath()
