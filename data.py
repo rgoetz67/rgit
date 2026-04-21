@@ -1060,7 +1060,7 @@ class RGitData():
         for commitId, commitTime, _, _ in self.repoFiles[path]["commits"]:
             if commitId in self.allCommitIds[branch]:
                 cl.append((commitId, commitTime))
-        return [e[0]  for e in sorted(cl, key=lambda x:-x[1]) ]
+        return [e  for e in sorted(cl, key=lambda x:-x[1]) ]
 
 
                     

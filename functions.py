@@ -20,6 +20,35 @@ if __name__ == '__main__':
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 import json
 
+arrowImg = "%s/icons/arrowDown.png" % os.path.dirname(__file__)
+
+baseStyle  = "QTreeWidget {font-size:14px;border: 1px solid black; font-size:14px}\n"
+baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white; background-color:white; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
+baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
+baseStyle += "QTreeView::item:hover {background-color: #CCf8ff; color:#000000}\n"
+baseStyle += "QListView::item:selected { background-color: #0088FF;}\n"
+baseStyle += "QComboBox  { font-size:14px;background-color: white; border:1px solid #00AA00; border-radius:2px ; padding:2px; font-size:14px}\n"
+baseStyle += "QComboBox::down-arrow { image: url('%s')}\n" %(arrowImg)
+baseStyle += "QComboBox::drop-down {border:0px;}\n"
+baseStyle += "QMenu  { font-size:16px}\n"
+baseStyle += "QLabel { font-size:14px}\n"
+baseStyle += "QHeaderView::section  {border: 0px solid white;border-right: 1px solid #cbe0c4; border-bottom: 1px solid #448800; background-color:#F9FFF7; font-size:14px; font-weight:bold; padding-left:8px; font-size:14px}\n"
+baseStyle += "QToolButton {background-color:#FFFFFF; border:1px solid #00AA00; border-radius:2px}\n"
+baseStyle += "QToolButton::disabled {border:1px solid #AABBAA; border-radius:2px}\n"
+baseStyle += "QMainWindow {background-color:#FFFDFA;}\n"
+baseStyle += "QPushButton {background-color:#FFFFFF; border:1px solid #00AA00; border-radius:2px; padding:2px 8px 2px 8px; font-size:14px}\n"
+baseStyle += "QPlainTextEdit{background-color:#FFFFFF; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+baseStyle += "\n"
+
+timFormat = "%Y-%m-%d %H:%M:%S"
+
 
 def configPath():
     if sys.platform == "win32":

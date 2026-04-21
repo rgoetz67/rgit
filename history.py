@@ -39,7 +39,7 @@ from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
 
 from blame     import BlameDisplay
-from functions import centerWindow
+from functions import centerWindow, baseStyle
 
 
 class CenteredRadioButton(QFrame):
@@ -72,12 +72,15 @@ class HistoryView(QFrame):
         self.bg2 = None
         self.diffBtn = {}
         self.blamBtn = {}
+        self.setStyleSheet(baseStyle + "HistoryView {background-color:#FFFDFA;}\n")
         self.initUI()
         centerWindow(self, ref=self.pwin)
 
     def initUI(self):
         self.gbox = QGridLayout()
         self.setLayout(self.gbox)
+        self.gbox.setVerticalSpacing(4)
+        self.gbox.setContentsMargins(4,4,4,4)
 
         self.histList = QTreeWidget()
 #        self.histList.setMinimumSize(1200,800)
@@ -111,6 +114,7 @@ class HistoryView(QFrame):
         self.diffPrvBtn.clicked.connect(self.doDiffPrev1)
         self.diffSelBtn.clicked.connect(self.doDiffSelected)
         self.blameCurBtn.clicked.connect(self.doBlameSelected)
+
         
     def sizeHint(self):
         return QSize(32,24)
@@ -120,21 +124,28 @@ class HistoryView(QFrame):
         f = QFrame()
         self.hbox = QHBoxLayout()
         f.setLayout(self.hbox)
+        self.hbox.setSpacing(10)
+        self.hbox.setContentsMargins(0,0,0,0)
 
-        self.diffSelBtn = QPushButton("Diff Selected")
-        self.diffPrvBtn = QPushButton("Diff Previous")
-        self.blameCurBtn = QPushButton("Blame")
-        self.closeBtn   = QPushButton("Close")
+        self.diffSelBtn   = QPushButton("Diff Selected")
+        self.diffPrvBtn   = QPushButton("Diff Previous")
+        self.blameCurBtn  = QPushButton("Blame")
+        self.hideBlameBtn = QPushButton("Hide Blame")
+        self.closeBtn     = QPushButton("Close")
         self.closeBtn.clicked.connect(self.close)
+        self.hideBlameBtn.clicked.connect(self.hideBlame)
         self.hbox.addWidget(self.diffSelBtn,  0, Qt.AlignLeft)
         self.hbox.addWidget(self.diffPrvBtn,  0, Qt.AlignLeft)
         self.hbox.addWidget(self.blameCurBtn, 0, Qt.AlignLeft)
         self.hbox.addWidget(QLabel(""), 10)
+        self.hbox.addWidget(self.hideBlameBtn, 0, Qt.AlignRight)
         self.hbox.addWidget(self.closeBtn, 0, Qt.AlignRight)
+        self.hideBlameBtn.hide()
         return f
     
         
     def fill(self, rgd,  filePath, branch):
+        self.setWindowTitle("RGit: History of '%s'"% filePath)
         self.rgd      = rgd
         self.branch   = branch
         self.filePath = filePath
@@ -241,14 +252,17 @@ class HistoryView(QFrame):
             if self.blamBtn[eid] == self.sender():
                 print("Blame ", eid, self.fileItems[eid].text(0))
                 #  self.rgd.doDiff(self.branch, eid, self.prevCommit[eid] )
+                self.prevSize = self.size()
                 if self.blameWin is None:
                     self.blameWin = BlameDisplay(self,self.rgd, self.branch,
                                                  self.fileItems[eid].text(0),
                                                  self.currentCommitId,
                                                  embedded=True)
-                    self.gbox.addWidget(self.blameWin,   1,3,3, 1)
+                    self.gbox.addWidget(self.blameWin,   1,3,2, 1)
                 else:
                     self.blameWin.reinit(self.branch, self.fileItems[eid].text(0), self.currentCommitId)
+                self.hideBlameBtn.show()
+
 
     def doBlameSelected(self):
         sel = self.histList.selectedItems()
@@ -257,6 +271,8 @@ class HistoryView(QFrame):
             shortCommitHash = sel[0].text(3)
             commitTimeStr   = sel[0].text(7)
             commitTimeInt   = int(datetime.datetime.fromisoformat(commitTimeStr).timestamp())
+            self.prevSize = self.size()
+            print("------>", self.prevSize)
             for i, (commitId, commitTime, blobId,_path) in enumerate(self.commits[:-1]):
                 if blobId[:7] == shortBlobHash and commitId[:7] == shortCommitHash and  commitTimeInt == commitTime:
                     if self.blameWin is None:
@@ -264,10 +280,18 @@ class HistoryView(QFrame):
                                                      self.filePath,
                                                      commitId,
                                                      embedded=True)
-                        self.gbox.addWidget(self.blameWin,   1,3,3, 1)
+                        self.gbox.addWidget(self.blameWin,   1,3,2, 1)
                     else:
                         self.blameWin.reinit(self.branch, self.filePath,  commitId)   
+                    self.hideBlameBtn.show()
 
+
+    def hideBlame(self):
+        self.blameWin.hide()
+        self.hideBlameBtn.hide()
+        QApplication.processEvents()
+        self.resize(self.prevSize)
+        
 
     def doDiffPrev1(self):
         sel = self.histList.selectedItems()

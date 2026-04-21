@@ -57,11 +57,10 @@ from browser   import OpenRepositoryDialog
 from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
-from functions import loadSettings, saveSettings
+from functions import loadSettings, saveSettings, baseStyle, timFormat
 import pygit2
 
 
-timFormat = "%Y-%m-%d %H:%M:%S"
 
 
 
@@ -142,15 +141,6 @@ class RGitVersions(QMainWindow):
 
         progPath = os.path.dirname(__file__)
 
-        baseStyle = "QTreeWidget {font-size:14px;border: 1px solid black}\n"
-        baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white}\n"
-        baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
-        baseStyle += "QTreeView::item:hover {background-color: #CCf8ff; color:#000000}\n"
-        baseStyle += "QListView::item:selected {   background-color: #0088FF;}\n"
-        baseStyle += "QComboBox  { font-size:14px}"
-        baseStyle += "QMenu  { font-size:14px}"
-        baseStyle += "QLabel { font-size:14px}"
-        baseStyle += "QHeaderView::section  { font-size:14px; font-weight:bold; text-align:center}"
         self.setStyleSheet(baseStyle)
 
 
@@ -229,8 +219,8 @@ class RGitVersions(QMainWindow):
 
         self.gbox.addWidget(self.tools,         1, 1, 1, 2)
         self.gbox.addWidget(self.infos,         2, 1, 1, 2)
-        self.gbox.addWidget(self.branchSelect,  3, 1, 1, 1)
-        self.gbox.addWidget(self.dirTree,       4, 1, 2, 1)
+        #  self.gbox.addWidget(self.branchSelect,  3, 1, 1, 1)
+        self.gbox.addWidget(self.dirTree,       3, 1, 3, 1)
         self.gbox.addWidget(self.fileTree,      3, 2, 2, 4)
         self.gbox.addWidget(self.showLocal,     5, 3, 1, 1)
         self.gbox.addWidget(self.lFileType,     5, 4, 1, 1)
@@ -349,8 +339,13 @@ class RGitVersions(QMainWindow):
         self.infoCurBranch.setMinimumWidth(200)
         self.infoRemoteRepo.setMinimumWidth(240)
 
-        self.bookmarkBtn = QPushButton("+")
-        self.bookmarkBtn.setStyleSheet("QPushButton { font-size:16px; font-weight:bold; max-height:20px ; max-width:20px}")
+        icon = QIcon(os.path.dirname(__file__)+"/icons/plus-solid-full.svg")
+        self.bookmarkBtn = QPushButton(icon, "")
+        self.bookmarkBtn.setMinimumHeight(24)
+        self.bookmarkBtn.setMaximumHeight(24)
+        self.bookmarkBtn.setMinimumWidth(24)
+        self.bookmarkBtn.setMaximumWidth(24)
+#        self.bookmarkBtn.setStyleSheet("QPushButton { font-size:16px; font-weight:bold; max-height:20px ; max-width:20px}")
         self.bookmarkBtn.clicked.connect(self.addBookmark)
         self.ibox.addWidget(self.infoLocalRepo, 0)
         self.ibox.addWidget(self.infoCurBranch, 0)
@@ -722,7 +717,6 @@ class RGitVersions(QMainWindow):
 
     def colorizeTreeItem(self, item, status):
         if status != "CURRENT":
-            print(">>>>>>>>", item.text(0), "'%s'" % status, status in self.statusColor,"\n\t", self.statusColor.keys())
             if status in self.statusColor:
                 self.setFileTreeItemColor(item, self.statusColor[status])
             else:

@@ -28,7 +28,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui     import *
 from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
-from functions import centerWindow
+from functions import centerWindow, timFormat, baseStyle
 
 
 colors = [QBrush("#FFDDDD"),
@@ -49,9 +49,11 @@ class BlameDisplay(QFrame):
         self.branch = branch
         self.path   = path
         self.embedded = embedded
+        self.setStyleSheet(baseStyle + "BlameDisplay {background-color:#FFFDFA;}\n")
         self.initUI()
-        for cid in self.rgd.commitForPath(self.branch, self.path):
-            self.commitSelect.addItem(cid)
+        for cid, ct in self.rgd.commitForPath(self.branch, self.path):
+            cts  = datetime.datetime.fromtimestamp(ct).strftime(timFormat)
+            self.commitSelect.addItem("%s : %s" %(cts, cid[:7]), cid)
             
         self.fill(commitId, blobId)
         self.show()
@@ -61,12 +63,17 @@ class BlameDisplay(QFrame):
     def initUI(self):
         self.gbox = QGridLayout()
         self.setLayout(self.gbox)
+        self.gbox.setSpacing(0)
+        self.gbox.setVerticalSpacing(4)
+        self.gbox.setContentsMargins(4,4,4,4)
 
+        self.lCommit      = QLabel("Blame at Commit:  ")
         self.commitSelect = QComboBox()
+#        self.commitSelect.setStyleSheet("QComboBox  { font-size:14px;background-color: white border:1px solid #00AA00; border-radius:2px }\n")
         self.codeDisplay  = QTreeWidget()
         self.codeDisplay.setMinimumSize(920,480)
         self.codeDisplay.setColumnCount(4)
-        self.codeDisplay.setHeaderLabels(["Line", "Last\nVersion", "Change\nCommit", "Conetnt"])
+        self.codeDisplay.setHeaderLabels(["Line", "Last\nVersion", "Change\nCommit", "Content"])
 
 
         self.messageCB = QCheckBox("Show Commit Message")
@@ -77,19 +84,23 @@ class BlameDisplay(QFrame):
 
         self.buttons   =self.buttonFrame()
 
-        self.gbox.addWidget(self.commitSelect, 1, 1, 1, 1, Qt.AlignTop | Qt.AlignLeft)
-        self.gbox.addWidget(self.messageCB,    1, 3, 1, 1, Qt.AlignTop | Qt.AlignRight)
-        self.gbox.addWidget(self.message,      1, 4, 1, 1)
-        self.gbox.addWidget(self.codeDisplay,  2, 1, 1, 4)
-        self.gbox.addWidget(self.buttons,      3, 1, 1, 4)
+        self.gbox.addWidget(self.lCommit,      1, 1, 1, 1, Qt.AlignVCenter | Qt.AlignLeft)
+        self.gbox.addWidget(self.commitSelect, 1, 2, 1, 1, Qt.AlignTop | Qt.AlignLeft)
+        self.gbox.addWidget(self.messageCB,    1, 4, 1, 1, Qt.AlignTop | Qt.AlignRight)
+        self.gbox.addWidget(self.message,      2, 4, 1, 1)
+        self.gbox.addWidget(self.codeDisplay,  3, 1, 1, 5)
+        if not self.embedded:
+            self.gbox.addWidget(self.buttons,      4, 1, 1, 5)
 
         self.gbox.setColumnStretch(1,0)
-        self.gbox.setColumnStretch(2,1)
-        self.gbox.setColumnStretch(3,0)
+        self.gbox.setColumnStretch(2,0)
+        self.gbox.setColumnStretch(3,1)
         self.gbox.setColumnStretch(4,0)
+        self.gbox.setColumnStretch(5,0)
         self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,1)
-        self.gbox.setRowStretch(3,0)
+        self.gbox.setRowStretch(3,10)
+        self.gbox.setRowStretch(4,0)
         self.gbox.setColumnMinimumWidth (3, 480)
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
@@ -101,11 +112,10 @@ class BlameDisplay(QFrame):
         f = QFrame()
         self.hbox = QHBoxLayout()
         f.setLayout(self.hbox)
+        self.hbox.setSpacing(40)
+        self.hbox.setContentsMargins(0,0,0,0)
 
-        if self.embedded:
-            self.closeBtn = QPushButton("Hide")
-        else:
-            self.closeBtn = QPushButton("Close")
+        self.closeBtn = QPushButton("Close")
         self.closeBtn.clicked.connect(self.close)
         self.hbox.addWidget(QLabel(""), 10)
         self.hbox.addWidget(self.closeBtn, 0, Qt.AlignRight)
@@ -117,23 +127,26 @@ class BlameDisplay(QFrame):
         self.path   = path
         self.commitSelect.blockSignals(True)
         self.commitSelect.clear()
-        for cid in self.rgd.commitForPath(self.branch, self.path):
-            self.commitSelect.addItem(cid)
+        for cid, ct in self.rgd.commitForPath(self.branch, self.path):
+            cts  = datetime.datetime.fromtimestamp(ct).strftime(timFormat)
+            self.commitSelect.addItem("%s : %s" %(cts, cid[:7]), cid)
         self.commitSelect.blockSignals(False)
         self.refill(commitId)
         
 
-    def refill(self, commitId):
+    def refill(self, commitText):
         self.codeDisplay.clear()
+        commitId =self.commitSelect.currentData()
         self.fill(commitId)
 
 
 
     def fill(self, commitId, blobId=None):
-        print("fill \t >  ", blobId, blobId is None, commitId, self.branch, self.path)
+        self.setWindowTitle("RGit: Blame for '%s'"% self.path)
+        # print("fill \t >  ", blobId, blobId is None, commitId, self.branch, self.path)
         if blobId is None:
             blobId = self.rgd.getBlobIdInCommit(self.branch, commitId, self.path)
-        print("fill \t >> ", blobId)
+        # print("fill \t >> ", blobId)
         if blobId is None:
             return False
 
@@ -173,7 +186,7 @@ class BlameDisplay(QFrame):
         for c in range(3):
             self.codeDisplay.resizeColumnToContents(c)
             tw += self.codeDisplay.columnWidth(c)
-        w = self.width() - tw -4
+        w = self.width() - tw -16
         self.codeDisplay.setColumnWidth(3,w)
 
 
@@ -184,12 +197,6 @@ class BlameDisplay(QFrame):
             self.message.hide()
 
 
-
-    def close(self):
-        if self.embedded:
-            self.hide()
-        else:
-            super().close()
 
             
     def quit(self):
