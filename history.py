@@ -184,7 +184,10 @@ class HistoryView(QFrame):
             self.histList.setItemWidget(item, 1, self.rb2[blobId])
         for c in range(2,10,1):
             self.histList.resizeColumnToContents(c)
-        self.histList.setColumnWidth(0,36)   # extar space for the invisib;e expandion indicator
+        if sys.platform =="win32":
+            self.histList.setColumnWidth(0,54)   # extra space for the invisib;e expandion indicator
+        else:
+            self.histList.setColumnWidth(0,36)   # extra space for the invisib;e expandion indicator
         self.histList.setColumnWidth(1,24)
 
 

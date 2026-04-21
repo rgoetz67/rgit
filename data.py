@@ -43,7 +43,7 @@ import numpy as np
 from PySide6.QtWidgets import *
 from PySide6.QtGui     import *
 from PySide6.QtCore    import *
-from functions import saveSettings
+from functions import saveSettings, globalTmpPath
 
 
 tmpRepos = []
@@ -169,7 +169,52 @@ class PasswordDialog(QDialog):
         self.close()
 
 
-    
+class UserDialog(QDialog):
+
+    def __init__(self, user="", mail=""):
+        super().__init__()
+        self.gbox = QGridLayout()
+        self.setLayout(self.gbox)
+        self.title = QLabel("Need User name and mail for thye commit")
+        self.lUser = QLabel("Username = ")
+        self.user  = QLineEdit()
+        self.lMail = QLabel("Email    = ")
+        self.mail  = QLineEdit()
+        self.user.setText(user)
+        self.mail.setText(mail)
+        self.closeBtn  = QPushButton("Close")
+        self.cancelBtn = QPushButton("Cancel")
+        self.closeBtn.clicked.connect(self.closeDlg)
+        self.cancelBtn.clicked.connect(self.cancelDlg)
+
+        self.gbox.addWidget(self.title,     1, 1, 1, 3)            
+        self.gbox.addWidget(self.lUser,     2, 1, 1, 1)            
+        self.gbox.addWidget(self.user,      2, 2, 1, 2)            
+        self.gbox.addWidget(self.lMail,     3, 1, 1, 1)            
+        self.gbox.addWidget(self.mail,      3, 2, 1, 2)            
+        self.gbox.addWidget(self.cancelBtn, 4, 1, 1, 1)            
+        self.gbox.addWidget(self.closeBtn,  4, 3, 1, 1)            
+        self.gbox.setColumnStretch(1,0)
+        self.gbox.setColumnStretch(2,1)
+        self.gbox.setColumnStretch(3,0)
+
+        self.setModal(True)
+        self.show()
+#       centerWindow(self)
+
+
+    def closeDlg(self ):
+        self.setResult(1)
+        self.done(1)
+        self.close()
+
+    def cancelDlg(self ):
+        self.setResult(0)
+        self.done(0)
+        self.close()
+
+
+ 
 
 class RGitData():
 
@@ -177,7 +222,12 @@ class RGitData():
         self.curBranch       = curBranch
         self.config          = config
         self.creds           = creds
-        #         self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        try:
+            self.globalConfig    = {c.name:c.value for c in pygit2.Config.get_global_config()}
+        except:
+            self.globalConfig = {}
+
+        print(">>>>> globalConfig :",  self.globalConfig)
         
         # FXIME better detection of available ssh keys
         if sys.platform == "win32":
@@ -236,11 +286,13 @@ class RGitData():
             self.diffCommand = self.config["diffCommand"]
         else:
             if sys.platform == "win32":
-                diffCommand = "C:\Program Files\TortoiseSVN\bin\TortoiseMerge.exe"
+                diffCommand = "C:\\Program Files\\TortoiseSVN\\bin\\TortoiseMerge.exe"
+                print("\t\t", diffCommand, os.path.exists(diffCommand))
                 if os.path.exists(diffCommand):
-                    self.diffCommand = diffCommand + " %1 %2"
+                    self.diffCommand = "\"" + diffCommand + "\" %1 %2"
             else:
                 self.diffCommand = "tkdiff %1 %2"
+        print(" DIFF CMD: ",self.diffCommand)
                 
         self.primaryBranches = []
         localPrim = ""
@@ -813,7 +865,7 @@ class RGitData():
             status = self.repo.status_file(path[2:]).name
         else:
             status = self.repo.status_file(path).name
-        if status in ["WT_MODIFIED", "INDEX_NEW", "INDEX_DELETED|WT_NEW", "INDEX_DELETED"]:
+        if status in ["WT_MODIFIED", "INDEX_NEW", "INDEX_DELETED|WT_NEW", "INDEX_DELETED", "INDEX_MODIFIED", "INDEX_MODIFIED|WT_MODIFIED"]:
             return True
         return False
 
@@ -1002,7 +1054,10 @@ class RGitData():
         commitId = self.commitByBlob.get(blobId, [["", 0]])[0][0]
 
         bf, ext  = os.path.splitext(os.path.basename(filePath))
-        tmpFilePath = "/tmp/" + bf+"."+ commitId + ext
+        if sys.platform == "win32":
+            tmpFilePath = globalTmpPath() +"\\" + bf+"."+ commitId + ext
+        else:
+            tmpFilePath = globalTmpPath() + "/" + bf+"."+ commitId + ext
         with open(tmpFilePath, "wb") as out:
             out.write(entry.data)
         return tmpFilePath
@@ -1013,7 +1068,13 @@ class RGitData():
         self.diffFilePath2 = self.getDifFile(branch, file2, blobId2)
         print("DIFF  ", self.diffFilePath1, blobId1)
         print("  vs  ", self.diffFilePath2, blobId2)
-        cmd = re.sub("%2", self.diffFilePath2, re.sub("%1", self.diffFilePath1, self.diffCommand))
+        cmd = copy.copy(self.diffCommand)
+        p = cmd.find("%1")
+        cmd = cmd[:p] + self.diffFilePath1 + cmd[p+2:]
+        p = cmd.find("%2")
+        cmd = cmd[:p] + self.diffFilePath2 + cmd[p+2:]
+        print(">>>>", cmd)
+        # cmd = re.sub("%2", self.diffFilePath2, re.sub("%1", self.diffFilePath1, self.diffCommand))
         self.diffProc = subprocess.Popen(cmd, shell = True)
         QTimer.singleShot(500, self.__checkDiffStatus)
 
@@ -1070,8 +1131,19 @@ class RGitData():
 
 
         return os.path.basename(os.path.dirname(p))
-                                             
-
+                      
+    def getAuthor(self):                      
+        try:
+            user = self.repo.default_signature
+        except:
+            if "user.name" not in self.globalConfig or "user.email" not in self.globalConfig:
+                dlg = UserDialog(self.globalConfig.get("user.name", ""),
+                                 self.globalConfig.get("user.email", ""))
+                ret = dlg.exec()
+                if ret == 0:
+                   return None
+            user   = pygit2.Signature(dlg.user.text(), dlg.mail.text())
+        return user
 
     def commitFiles(self, files, message, pushToRemote):
         ref     = self.repo.head.name  
@@ -1090,7 +1162,10 @@ class RGitData():
                 except:
                     pass
         index.write()
-        user = self.repo.default_signature
+        user = self.getAuthor()
+        if user is None:
+            return False
+        # user = self.repo.default_signature
         tree      = index.write_tree()
         new_commit = self.repo.create_commit(ref, user, user, message, tree, parents)
         if len(self.lastCommitMessages) ==0 or message != self.lastCommitMessages[0]:
@@ -1172,7 +1247,7 @@ class RGitData():
                             print('Conflicts found in:', conflict[0].path)
                         raise AssertionError('Conflicts, ahhhhh!!')
 
-                    user = self.repo.default_signature
+                    user =selfg.getAuthor()
                     tree = self.repo.index.write_tree()
                     commit = self.repo.create_commit('HEAD',
                                                 user,

@@ -166,7 +166,7 @@ class CommitDialog(QFrame):
         self.filesList.setColumnWidth(3,120)
         print("----->", self.width(), self.width()-364)
         self.filesList.setColumnWidth(0, self.width()-364)
-
+        centerWindow(self, ref=self.pwin)
 
     def copyMessage(self, idx):
         msgIndex = self.prevMsg.currentData()

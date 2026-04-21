@@ -69,6 +69,8 @@ class BlameDisplay(QFrame):
 
         self.lCommit      = QLabel("Blame at Commit:  ")
         self.commitSelect = QComboBox()
+        self.commitSelect.setMinimumWidth(240)
+        self.commitSelect.setMaximumWidth(320)
 #        self.commitSelect.setStyleSheet("QComboBox  { font-size:14px;background-color: white border:1px solid #00AA00; border-radius:2px }\n")
         self.codeDisplay  = QTreeWidget()
         self.codeDisplay.setMinimumSize(920,480)
