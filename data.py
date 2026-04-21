@@ -182,6 +182,7 @@ class UserDialog(QDialog):
         self.mail  = QLineEdit()
         self.user.setText(user)
         self.mail.setText(mail)
+        self.asDefault = QCheckBox("use this name as default")
         self.closeBtn  = QPushButton("Close")
         self.cancelBtn = QPushButton("Cancel")
         self.closeBtn.clicked.connect(self.closeDlg)
@@ -192,8 +193,9 @@ class UserDialog(QDialog):
         self.gbox.addWidget(self.user,      2, 2, 1, 2)            
         self.gbox.addWidget(self.lMail,     3, 1, 1, 1)            
         self.gbox.addWidget(self.mail,      3, 2, 1, 2)            
-        self.gbox.addWidget(self.cancelBtn, 4, 1, 1, 1)            
-        self.gbox.addWidget(self.closeBtn,  4, 3, 1, 1)            
+        self.gbox.addWidget(self.asDefault, 4, 2, 1, 2)            
+        self.gbox.addWidget(self.cancelBtn, 5, 1, 1, 1)            
+        self.gbox.addWidget(self.closeBtn,  5, 3, 1, 1)            
         self.gbox.setColumnStretch(1,0)
         self.gbox.setColumnStretch(2,1)
         self.gbox.setColumnStretch(3,0)
@@ -1137,12 +1139,15 @@ class RGitData():
             user = self.repo.default_signature
         except:
             if "user.name" not in self.globalConfig or "user.email" not in self.globalConfig:
-                dlg = UserDialog(self.globalConfig.get("user.name", ""),
-                                 self.globalConfig.get("user.email", ""))
+                defUser, defMail = self.config.get("Author", ["",""])
+                dlg = UserDialog(self.globalConfig.get("user.name", defUser),
+                                 self.globalConfig.get("user.email", defMail))
                 ret = dlg.exec()
                 if ret == 0:
                    return None
-            user   = pygit2.Signature(dlg.user.text(), dlg.mail.text())
+                if dlg.asDefault.isChecked():
+                   self.config["author"] = [dlg.user.text(), dlg.mail.text()]
+                user   = pygit2.Signature(dlg.user.text(), dlg.mail.text())
         return user
 
     def commitFiles(self, files, message, pushToRemote):
