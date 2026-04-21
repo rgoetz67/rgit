@@ -20,8 +20,11 @@ if __name__ == '__main__':
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 import json
 
-arrowImg = "%s/icons/arrowDown.png" % os.path.dirname(__file__)
-
+arrowImg      = "%s/icons/arrowDown.png" % os.path.dirname(__file__)
+checkOnImg    = "%s/icons/checkBoxCheck.png" % os.path.dirname(__file__)
+checkInterImg = "%s/icons/checkBoxInter.png" % os.path.dirname(__file__)
+checkOffImg   = "%s/icons/checkBoxUncheck.png" % os.path.dirname(__file__)
+print("???", checkOnImg)
 baseStyle  = "QTreeWidget {font-size:14px;border: 1px solid black; font-size:14px}\n"
 baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white; background-color:white; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
 baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
@@ -38,8 +41,10 @@ baseStyle += "QToolButton::disabled {border:1px solid #AABBAA; border-radius:2px
 baseStyle += "QMainWindow {background-color:#FFFDFA;}\n"
 baseStyle += "QPushButton {background-color:#FFFFFF; border:1px solid #00AA00; border-radius:2px; padding:2px 8px 2px 8px; font-size:14px}\n"
 baseStyle += "QPlainTextEdit{background-color:#FFFFFF; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
-baseStyle += "QCheckBox{font-size:14px}\n"
-baseStyle += "\n"
+baseStyle += "QCheckBox{font-size:14px; background-color:white; font-weight:bold}\n"
+baseStyle += "QCheckBox::indicator {border: 1px solid #000000; border-radius:2px; margin-left:1px;margin-bottom:1px;  height:15px; width:15px;}"
+baseStyle += "QCheckBox::indicator:checked {  border: 1px solid black; image: url('%s'); height:15px; width:15px;}\n" %checkOnImg
+baseStyle += "QCheckBox::indicator:indeterminate {  border: 1px solid black; image: url('%s'); height:15px; width:15px; }\n" %checkInterImg
 baseStyle += "\n"
 baseStyle += "\n"
 baseStyle += "\n"
