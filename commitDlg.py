@@ -140,6 +140,7 @@ class CommitDialog(QFrame):
         for f in files:
             status = self.rgd.getFileStatus(self.branch, f)
             item   = QTreeWidgetItem([f, status, "", ""])
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(0, Qt.Checked)
         
             self.filesList.addTopLevelItem(item)
