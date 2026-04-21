@@ -285,11 +285,13 @@ class RGitVersions(QMainWindow):
                             "remove"  : self.menu["modified"].addAction("Remove from Repo"),
                             "move"    : self.menu["modified"].addAction("Move File"),
                             "sep1"    : self.menu["modified"].addSeparator(),
+                            "blame"   : self.menu["modified"].addAction("Blame"),
                             "show"    : self.menu["modified"].addAction("Show Content"),
                             
                             "removeC" : self.menu["commited"].addAction("Remove from Repo"),
 #                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
                             "showC"   : self.menu["commited"].addAction("Show Content"),
+                            "blameC"  : self.menu["commited"].addAction("Blame"),
                             "moveC"   : self.menu["commited"].addAction("Move File"),
 
                             "update"  : self.menu["remoteUp"].addAction("Update to origin"),
@@ -305,11 +307,13 @@ class RGitVersions(QMainWindow):
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
         self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
         self.menuActions["show"].triggered.connect(self.showFileContent)
+        self.menuActions["blame"].triggered.connect(self.showBlameFromContext)
         self.menuActions["move"].triggered.connect(self.doDummy)
 
         self.menuActions["removeC"].triggered.connect(self.doDeleteFile)
 #        self.menuActions["restoreC"].triggered.connect(self.doDummy)
         self.menuActions["showC"].triggered.connect(self.showFileContent)
+        self.menuActions["blameC"].triggered.connect(self.showBlameFromContext)
         self.menuActions["moveC"].triggered.connect(self.doDummy)
 
         self.menuActions["update"].triggered.connect(self.doDummy)
@@ -888,19 +892,30 @@ class RGitVersions(QMainWindow):
                 self.rgd.doDiff(branch, filePath, None, filePath, blobId)
 
 
+    def showBlameFromContext(self):
+        filePath = self.curContextItem.text(0)
+        if not os.path.isdir(filePath):
+            self.__showBlame(self.curContextItem)
+
                 
     def showBlame(self):
         sel = self.fileTree.selectedItems()
         # print(">>>", sel)
         if len(sel) == 1:
-            fileName = sel[0].text(0)
-            filePath = sel[0].data(0, Qt.UserRole)[0]
-            branch   = sel[0].data(0, Qt.UserRole)[1]
-            entryId  = sel[0].data(0, Qt.UserRole)[2]
-            commitId = self.rgd.getCommitOfBlob(entryId, lastBefore=time.time())
-            # print ("BLAME : ", branch, entryId, commitId)
-            # print ("BLAME : ", filePath)
-            self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
+            self.__showBlame(sel[0])
+
+    def __showBlame(self, item):
+        print("---->", item)
+        print("---->", item.text(0))
+        print("---->", item.data(0, Qt.UserRole))
+        fileName = item.text(0)
+        filePath = item.data(0, Qt.UserRole)[0]
+        branch   = item.data(0, Qt.UserRole)[1]
+        entryId  = item.data(0, Qt.UserRole)[2]
+        commitId = self.rgd.getCommitOfBlob(entryId, lastBefore=time.time())
+        # print ("BLAME : ", branch, entryId, commitId)
+        # print ("BLAME : ", filePath)
+        self.blameDisplay = BlameDisplay(self, self.rgd, branch, filePath, commitId, blobId=entryId)
 
 
     def openRepo(self):

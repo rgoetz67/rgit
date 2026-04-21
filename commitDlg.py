@@ -31,7 +31,7 @@ from PySide6.QtPrintSupport import QPrinter
 
 
 from data import GitCallbacks
-from functions import centerWindow
+from functions import centerWindow, baseStyle
 
 class CommitDialog(QFrame):
     commitExecuted = Signal()
@@ -44,12 +44,16 @@ class CommitDialog(QFrame):
         self.diffBtn = {}
         self.revretBtn = {}
         self.revertBtn = {}
+        self.setStyleSheet(baseStyle + "CommitDialog {background-color:#FFFDFA;}\n")
         self.initUI()
-        QApplication.processEvents()
+#         QApplication.processEvents()
+#         time.sleep(0.1)
+#         QApplication.processEvents()
         self.fill(files)
+        QApplication.processEvents()
         self.pushToRem.setChecked(push)
         # print("      push = ", push)
-        self.show()
+        # self.show()
         centerWindow(self, ref=self.pwin)
 
 
@@ -113,6 +117,8 @@ class CommitDialog(QFrame):
         f = QFrame()
         self.hbox = QHBoxLayout()
         f.setLayout(self.hbox)
+        self.hbox.setSpacing(40)
+        self.hbox.setContentsMargins(0,0,0,0)
 
         self.cancelBtn = QPushButton("Cancel")
         self.commitBtn = QPushButton("Commit")
@@ -140,18 +146,25 @@ class CommitDialog(QFrame):
                 
             self.diffBtn[f] = QPushButton("Diff Changes")
             self.diffBtn[f].clicked.connect(self.doDiff)
-            self.diffBtn[f].setMaximumWidth(100)
+            self.diffBtn[f].setMaximumWidth(120)
             self.revertBtn[f] = QPushButton("Revert Changes")
             self.revertBtn[f].clicked.connect(self.doRevert)
-            self.revertBtn[f].setMaximumWidth(100)
+            self.revertBtn[f].setMaximumWidth(120)
             self.filesList.setItemWidget(item, 2, self.diffBtn[f])
             self.filesList.setItemWidget(item, 3, self.revertBtn[f])
             self.fileItems[f] = item
-        self.filesList.setColumnWidth(1,100)
-        self.filesList.setColumnWidth(2,100)
-        self.filesList.setColumnWidth(3,100)
-        self.filesList.setColumnWidth(0, self.width()-324)
+            self.revertBtn[f].setEnabled(False)
+        print("------------")
+        QTimer.singleShot(100, self.show)
+        QTimer.singleShot(1000, self.resizeColumns)
 
+
+    def resizeColumns(self):
+        self.filesList.setColumnWidth(1,100)
+        self.filesList.setColumnWidth(2,120)
+        self.filesList.setColumnWidth(3,120)
+        print("----->", self.width(), self.width()-364)
+        self.filesList.setColumnWidth(0, self.width()-364)
 
 
     def copyMessage(self, idx):

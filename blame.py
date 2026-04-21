@@ -274,6 +274,7 @@ class CodeDisplay(QFrame):
         self.rgd      = rgd
         self.path     = path
         self.embedded = embedded
+        self.setStyleSheet(baseStyle + "CodeDisplay {background-color:#FFFDFA;}\n")
         self.initUI()
             
         self.fill( blobId)
@@ -283,6 +284,9 @@ class CodeDisplay(QFrame):
     def initUI(self):
         self.gbox = QGridLayout()
         self.setLayout(self.gbox)
+        self.gbox.setSpacing(0)
+        self.gbox.setVerticalSpacing(4)
+        self.gbox.setContentsMargins(4,4,4,4)
 
         self.codeDisplay  = QTextEdit()
         self.codeDisplay.setMinimumSize(920,480)
@@ -314,6 +318,8 @@ class CodeDisplay(QFrame):
         f = QFrame()
         self.hbox = QHBoxLayout()
         f.setLayout(self.hbox)
+        self.hbox.setSpacing(40)
+        self.hbox.setContentsMargins(0,0,0,0)
 
         if self.embedded:
             self.closeBtn = QPushButton("Hide")
