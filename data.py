@@ -131,7 +131,7 @@ class PasswordDialog(QDialog):
         self.pwd.setEchoMode(QLineEdit.Password)
         self.msg   = QLabel("")
         self.msg.setStyleSheet("QLabel {font-weight:bold; color:red}")
-        self.closeBtn  = QPushButton("Close")
+        self.closeBtn  = QPushButton("Use")
         self.cancelBtn = QPushButton("Cancel")
         self.closeBtn.clicked.connect(self.closeDlg)
         self.cancelBtn.clicked.connect(self.cancelDlg)
@@ -1247,7 +1247,14 @@ class RGitData():
                             print('Conflicts found in:', conflict[0].path)
                         raise AssertionError('Conflicts, ahhhhh!!')
 
-                    user =selfg.getAuthor()
+                    user = self.getAuthor()
+                    if user is None:
+                        user = self.getAuthor()
+                        if user is None:
+                            user = self.getAuthor()
+                            if user is None:
+                                user = self.getAuthor()
+                                return False
                     tree = self.repo.index.write_tree()
                     commit = self.repo.create_commit('HEAD',
                                                 user,
@@ -1266,6 +1273,22 @@ class RGitData():
         self.postProcess()
  
 
+
+    def resetIndex(self):
+        self.indexFiles[self.curBranch] = {"." :{"id":None, "name":"", "branch":self.curBranch, "files":[]} }
+        tid  = self.repo.index.write_tree()
+        tree = self.repo.get(self.repo.index.write_tree())
+        self.__scanIndexTree(self.curBranch, tree, ".")
+        for f in self.indexFiles[self.curBranch] :
+            print("check",f)
+            if f not in self.branchFiles[self.curBranch]:
+                print("file from in not in branch", f)
+            if self.indexFiles[self.curBranch][f] ["id"] != self.branchFiles[self.curBranch][f] ["id"]:
+                print("blob for file differ", f)
+        for f in self.branchFiles[self.curBranch]:
+            if f not in self.indexFiles[self.curBranch] :
+                print("file from in not in index", f)
+            
     def addFile(self, f):
         if f[-1] in ["/","\\"]:
             # FIXME message

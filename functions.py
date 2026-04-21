@@ -77,7 +77,7 @@ def globalTmpPath():
         if not os.path.exists(tmpPath):
             os.makedirs(tmpPath)
     else:
-        tmpPath =- "/tmp"
+        tmpPath = "/tmp"
     return tmpPath 
     
 

@@ -116,6 +116,7 @@ class RGitVersions(QMainWindow):
         self.statusCache = {}
         self.dirStatusRefreshPointer = 0
         self.updateIndex = 0
+        self.blockRefresh = False
         self.initUI()
         self.initMenus()
         if self.rgd is not None:
@@ -180,7 +181,9 @@ class RGitVersions(QMainWindow):
             "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
                                            self.refreshTrees, "Refresh"),
             "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/rebuild.png",
-                                           self.rebuildRGB, "Rebuild internal caches"),
+                                           self.rebuildRGD, "Rebuild internal caches"),
+            "reset" :  self.addToolButton("Reset\nIndex",    progPath+"/icons/rebuild.png",
+                                           self.resetIndex, "Reset the local indexu"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)
         self.infos = self.infoFrameFrame()
@@ -392,7 +395,7 @@ class RGitVersions(QMainWindow):
         else:
             self.__updateButtonStates(["open",   "history",  "diff",    "diffHead", "revert", "info",
                                        "blame",  "commityL", "commit",  "push",     "Update", 
-                                       "clone",  "branch",   "merge",   "Delete",   "refrsh", "rebuild"])
+                                       "clone",  "branch",   "merge",   "Delete",   "refrsh", "rebuild", "reset"])
             
     def __updateButtonStates(self, enabledButtons):
         # print("   __updateButtonStates :", enabledButtons)
@@ -629,12 +632,12 @@ class RGitVersions(QMainWindow):
 
     def showFileContextMenu(self, p):
         item = self.fileTree.itemAt(p)
-        # print("custom menu at ",p, item, item.text(0), item.text(1))
+        print("custom menu at ",p, item, item.text(0), item.text(1))
         status = item.text(1)
         if status == "not versioned":
             self.curContextItem = item
             self.menu["addOnly"].popup(self.cursor().pos())
-        elif status in ["MODIFIED"]:
+        elif status in ["MODIFIED"] or "MODIFIED" in status:
             self.curContextItem = item
             self.menu["modified"].popup(self.cursor().pos())
         elif status in ["CURRENT"]:
@@ -671,11 +674,11 @@ class RGitVersions(QMainWindow):
         
 
     def refreshStatus(self, allCommits = False):
-        if self.rgd is None or not self.isFilled:
+        if self.rgd is None or not self.isFilled or self.blockRefresh:
             return
         self.rgd.fetch()
         t0 =time.time()
-        print("  refreshStatus  ")
+        print("  refreshStatus  ", self.blockRefresh)
         # FIXME tree like dir state update
         p = self.dirStatusRefreshPointer
         if not allCommits:
@@ -796,7 +799,9 @@ class RGitVersions(QMainWindow):
         self.__doCommit(files, push=False)
     
     def doPush(self):
+        self.blockRefresh = True
         self.rgd.push()
+        self.blockRefresh = False
         self.refreshTrees()
         
     
@@ -859,8 +864,9 @@ class RGitVersions(QMainWindow):
 
 
     def doPull(self):
-        print(" DO PULL")
+        self.blockRefresh = True
         self.rgd.pull()
+        self.blockRefresh = False
         self.refreshTrees()
 
 
@@ -958,7 +964,11 @@ class RGitVersions(QMainWindow):
             self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
         
 
-    def rebuildRGB(self):
+    def resetIndex(self):
+        self.rgd.resetIndex()
+
+
+    def rebuildRGD(self):
         self.isFilled    = False
         curRepoPath      = self.rgd.repoPath
         self.rgd         = RGitData(self.config, self.creds, curRepoPath, forcedRebuild=True)
