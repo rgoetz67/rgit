@@ -200,6 +200,7 @@ class UserDialog(QDialog):
         self.gbox.setColumnStretch(2,1)
         self.gbox.setColumnStretch(3,0)
 
+        self.setMinimumWidth(320)
         self.setModal(True)
         self.show()
 #       centerWindow(self)
@@ -1139,7 +1140,9 @@ class RGitData():
             user = self.repo.default_signature
         except:
             if "user.name" not in self.globalConfig or "user.email" not in self.globalConfig:
-                defUser, defMail = self.config.get("Author", ["",""])
+                defUser, defMail = self.config.get("author", ["",""])
+                print(">>>>>>>", self.config)
+                print(">>>>>>>", defUser, defMail)
                 dlg = UserDialog(self.globalConfig.get("user.name", defUser),
                                  self.globalConfig.get("user.email", defMail))
                 ret = dlg.exec()
@@ -1147,6 +1150,7 @@ class RGitData():
                    return None
                 if dlg.asDefault.isChecked():
                    self.config["author"] = [dlg.user.text(), dlg.mail.text()]
+                   saveSettings(conf=self.config)
                 user   = pygit2.Signature(dlg.user.text(), dlg.mail.text())
         return user
 
@@ -1226,10 +1230,12 @@ class RGitData():
         for remote in self.repo.remotes:
             if remote.name == remote_name:
                 remote.fetch( callbacks=self.authCallBack)
-#                 remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
                 remote_master_id = self.repo.lookup_reference('refs/remotes/origin/%s' % (branch)).target
                 merge_result, _ = self.repo.merge_analysis(remote_master_id)
-                print("PULL: merge_result=",merge_result, merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE, merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD, merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)
+                print("PULL: merge_result=",merge_result,
+                      merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE,
+                      merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD,
+                      merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)
                 # Up to date, do nothing
                 if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
                     return
@@ -1241,16 +1247,19 @@ class RGitData():
                         master_ref = self.repo.lookup_reference('refs/heads/%s' % (branch))
                         master_ref.set_target(remote_master_id)
                     except KeyError:
-                        print("WARRNING: Local BTRANCH not exists")
+                        print("WARRNING: Local BRANCH not exists")
                         self.repo.create_branch(branch, self.repo.get(remote_master_id))
                     self.repo.head.set_target(remote_master_id)
+
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
-                    self.repo.merge(remote_master_id)
-                    
+
+                    self.repo.merge(remote_master_id, flags = pygit2.enums.MergeFileFlag. IGNORE_WHITESPACE_EOL)
+                    print(">>>>", self.repo.index.conflicts)
                     if self.repo.index.conflicts is not None:
                         for conflict in self.repo.index.conflicts:
                             print('Conflicts found in:', conflict[0].path)
                         raise AssertionError('Conflicts, ahhhhh!!')
+                    
 
                     user = self.getAuthor()
                     if user is None:
@@ -1280,19 +1289,29 @@ class RGitData():
 
 
     def resetIndex(self):
-        self.indexFiles[self.curBranch] = {"." :{"id":None, "name":"", "branch":self.curBranch, "files":[]} }
-        tid  = self.repo.index.write_tree()
-        tree = self.repo.get(self.repo.index.write_tree())
-        self.__scanIndexTree(self.curBranch, tree, ".")
-        for f in self.indexFiles[self.curBranch] :
-            print("check",f)
-            if f not in self.branchFiles[self.curBranch]:
-                print("file from in not in branch", f)
-            if self.indexFiles[self.curBranch][f] ["id"] != self.branchFiles[self.curBranch][f] ["id"]:
-                print("blob for file differ", f)
-        for f in self.branchFiles[self.curBranch]:
-            if f not in self.indexFiles[self.curBranch] :
-                print("file from in not in index", f)
+        fd = self.repo.status()
+        n   =0
+        for f in fd:
+            if fd[f] == pygit2.enums.FileStatus.INDEX_NEW:
+                self.repo.index.remove(f)
+                n+=1
+            if fd[f] == pygit2.enums.FileStatus.WT_DELETED:
+                self.restoreFile(f)
+        if n>0:
+            self.repo.index.write()
+#         self.indexFiles[self.curBranch] = {"." :{"id":None, "name":"", "branch":self.curBranch, "files":[]} }
+#         tid  = self.repo.index.write_tree()
+#         tree = self.repo.get(self.repo.index.write_tree())
+#         self.__scanIndexTree(self.curBranch, tree, ".")
+#         for f in self.indexFiles[self.curBranch] :
+#             print("check",f)
+#             if f not in self.branchFiles[self.curBranch]:
+#                 print("file from in not in branch", f)
+#             if self.indexFiles[self.curBranch][f] ["id"] != self.branchFiles[self.curBranch][f] ["id"]:
+#                 print("blob for file differ", f)
+#         for f in self.branchFiles[self.curBranch]:
+#             if f not in self.indexFiles[self.curBranch] :
+#                 print("file from in not in index", f)
             
     def addFile(self, f):
         if f[-1] in ["/","\\"]:

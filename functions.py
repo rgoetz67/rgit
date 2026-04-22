@@ -24,7 +24,7 @@ arrowImg      = "%s/icons/arrowDown.png" % os.path.dirname(__file__)
 checkOnImg    = "%s/icons/checkBoxCheck.png" % os.path.dirname(__file__)
 checkInterImg = "%s/icons/checkBoxInter.png" % os.path.dirname(__file__)
 checkOffImg   = "%s/icons/checkBoxUncheck.png" % os.path.dirname(__file__)
-print("???", checkOnImg)
+print("???", checkOnImg, os.path.ixists(checkOnImg) )
 baseStyle  = "QTreeWidget {font-size:14px;border: 1px solid black; font-size:14px}\n"
 baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white; background-color:white; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
 baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
