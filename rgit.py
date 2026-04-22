@@ -533,6 +533,7 @@ class RGitVersions(QMainWindow):
         extFilter  = self.__acceptedExtensions()
         for f in glob.glob(folder + "/*"):
             if not os.path.isdir(f) and  self.rgd.isAdded(f):
+                print("   local file is ADDED", f)
                 localFiles.append(f)
             elif self.showLocal.isChecked():
                 if f not in files:
@@ -574,7 +575,7 @@ class RGitVersions(QMainWindow):
                         remoteOnlyFiles.append(f)
         # print(">>>  files      ", files)
         # print(">>>  remote only", remoteOnlyFiles)
-        # print(">>>  local  only", localFiles)
+        print(">>>  local  only", localFiles)
         allFiles = files + localFiles + remoteOnlyFiles
 
         for f in sorted(allFiles):
@@ -661,12 +662,17 @@ class RGitVersions(QMainWindow):
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
         if dirName is not None:
-            for item, _ in self.dirItems:
-                if item.text(0) == dirName:
-                    self.dirTree.setCurrentItem(item)
-                    self.showFiles(item)
-                    break
+            if dirName == self.rgd.projectName():
+                self.dirTree.setCurrentItem(self.rootItem)
+                self.showFiles(self.rootItem)
+            else:
+                for item, _ in self.dirItems:
+                    if item.text(0) == dirName:
+                        self.dirTree.setCurrentItem(item)
+                        self.showFiles(item)
+                        break
         else:
+            print("\t\t-> show files of ROOT")
             self.dirTree.setCurrentItem(self.rootItem)
             self.showFiles(self.rootItem)
         self.resizeDirTree()

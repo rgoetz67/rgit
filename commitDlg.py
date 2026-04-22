@@ -79,6 +79,7 @@ class CommitDialog(QFrame):
       # self.comMsg.hide()
         self.lPrev     = QLabel("Previous Messages:")
         self.prevMsg = QComboBox()
+        self.prevMsg.setStyleSheet(baseStyle)
         self.prevMsg.addItem("", -1)
         for i, msg in enumerate(self.rgd.lastCommitMessages):
             line1 = msg.split("\n")[0]
