@@ -182,7 +182,7 @@ class RGitVersions(QMainWindow):
                                            self.refreshTrees, "Refresh"),
             "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/rebuild.png",
                                            self.rebuildRGD, "Rebuild internal caches"),
-            "reset" :  self.addToolButton("Reset\nIndex",    progPath+"/icons/rebuild.png",
+            "reset" :  self.addToolButton("Reset\nIndex",    progPath+"/icons/resetIndex.png",
                                            self.resetIndex, "Reset the local indexu"),
             }
         self.tools.layout().addWidget(QLabel(""), 100)

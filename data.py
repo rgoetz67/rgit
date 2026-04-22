@@ -1253,13 +1253,17 @@ class RGitData():
 
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
 
-                    self.repo.merge(remote_master_id, flags = pygit2.enums.MergeFileFlag. IGNORE_WHITESPACE_EOL)
-                    print(">>>>", self.repo.index.conflicts)
-                    if self.repo.index.conflicts is not None:
-                        for conflict in self.repo.index.conflicts:
-                            print('Conflicts found in:', conflict[0].path)
-                        raise AssertionError('Conflicts, ahhhhh!!')
-                    
+                    try:
+                        self.repo.merge(remote_master_id, flags = pygit2.enums.MergeFileFlag. IGNORE_WHITESPACE_EOL)
+                    except pygit2.GitError as e:
+                        print("CONFLICTS:")
+                        print(e)
+                        print(">>>>", self.repo.index.conflicts)
+                        if self.repo.index.conflicts is not None:
+                            for conflict in self.repo.index.conflicts:
+                                print('Conflicts found in:', conflict[0].path)
+                            raise AssertionError('Conflicts, ahhhhh!!')
+                        return False
 
                     user = self.getAuthor()
                     if user is None:
