@@ -49,9 +49,17 @@ baseStyle += "QMessageBox {font-weight:bold; font-size:16px; min-width:640px; wi
 baseStyle += "\n"
 baseStyle += "\n"
 baseStyle += "\n"
-baseStyle += "\n"
-baseStyle += "\n"
 
+splitterStyle  = "QSplitter:handle:horizontal { background-color:#CCE8AA; border:0px solid #CCE8AA;  margin:0 1px 0 1px; width:10px;}\n"
+splitterStyle += "QSplitter:handle:vertical { background-color:#FFE8AA; border:0px solid #FFE8AA;  margin:0 1px 0 1px; }\n"
+splitterStyle += "QSplitter:handle:pressed {background-color:#44AA00; border:0px solid #44AA00;}"
+splitterStyle += "QSplitter:handle:hover {background-color:#44AA00; border:0px solid #44AA00;}"
+# splitterStyle = "QSplitter:handle:horizontal { background-color:#00BB00; border:2px solid #00BB00; ); margin:0 4px 0 4px;}\n"
+# splitterStyle += "QSplitter:handle:vertical { background-color:#00BB00; border:1px solid #0000FF; ); margin:0 4px 0 4px;}\n"
+#splitterStyle +=  "QSplitter:handle:pressed {background-color:#00DD00; border:1px solid #00DD00;}"
+#splitterStyle +=  "QSplitter:handle:hover {background-color:#88DD88; border:1px solid #88DD88;}"
+
+# bsseStyle += splitterStyle
 timFormat = "%Y-%m-%d %H:%M:%S"
 
 

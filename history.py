@@ -39,7 +39,7 @@ from PySide6.QtCore    import *
 from PySide6.QtPrintSupport import QPrinter
 
 from blame     import BlameDisplay
-from functions import centerWindow, baseStyle
+from functions import centerWindow, baseStyle, splitterStyle
 
 
 class CenteredRadioButton(QFrame):
@@ -74,7 +74,7 @@ class HistoryView(QFrame):
         self.blamBtn = {}
         self.setStyleSheet(baseStyle + "HistoryView {background-color:#FFFDFA;}\n")
         self.initUI()
-        centerWindow(self, ref=self.pwin)
+        QTimer.singleShot(100, self.delayedCenterWindow)
 
     def initUI(self):
         self.gbox = QGridLayout()
@@ -82,11 +82,31 @@ class HistoryView(QFrame):
         self.gbox.setVerticalSpacing(4)
         self.gbox.setContentsMargins(4,4,4,4)
 
+
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setStyleSheet(splitterStyle)
+        self.splitter.setSizes([300,100,0])
+        self.buttons   =self.buttonFrame()
+        self.gbox.addWidget(self.splitter,  1,1,1, 1)
+        self.gbox.addWidget(self.buttons,   2,1,1, 1)
+        self.gbox.setRowStretch(1,1)
+        self.gbox.setRowStretch(2,0)
+
+
+
         self.histList = QTreeWidget()
-#        self.histList.setMinimumSize(1200,800)
-        self.histList.setMinimumSize(960,640)
+#         self.histList.setMinimumSize(1200,800)
+#         self.histList.setMinimumSize(960,640)
+        self.histList.setMinimumSize(960,480)
         self.histList.setColumnCount(10)
         self.histList.setHeaderLabels(["","", "Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags", "Commit Message"])
+
+
+        self.selFrame = QFrame()
+        self.vbox     = QVBoxLayout()
+        self.selFrame.setLayout(self.vbox)
+        self.vbox.setSpacing(4)
+        self.vbox.setContentsMargins(0,0,0,0)
 
         self.message = QPlainTextEdit()
 
@@ -96,29 +116,40 @@ class HistoryView(QFrame):
         self.filesList.setColumnCount(4)
         self.filesList.setHeaderLabels(["FileName", "Action", "", ""])
 
-        self.buttons   =self.buttonFrame()
+        self.vbox.addWidget(self.message,   1)
+        self.vbox.addWidget(self.filesList, 1)
 
-        self.gbox.addWidget(self.histList,  1,1,2, 1)
-        self.gbox.addWidget(self.message,   1,2,1, 1)
-        self.gbox.addWidget(self.filesList, 2,2,1, 1)
-        self.gbox.addWidget(self.buttons,   3,1,2, 3)
+        self.filesList.setMinimumWidth(320)
 
-        self.gbox.setColumnStretch(1,3)
-        self.gbox.setColumnStretch(2,1)
-        self.gbox.setRowStretch(1,1)
-        self.gbox.setRowStretch(2,1)
-        self.gbox.setRowStretch(3,0)
+        self.splitter.addWidget(self.histList)
+        self.splitter.addWidget(self.selFrame)
+#        self.splitter.addWidget(self.filesList,
+#         self.buttons   =self.buttonFrame()
+
+#         self.gbox.addWidget(self.histList,  1,1,2, 1)
+#         self.gbox.addWidget(self.message,   1,2,1, 1)
+#         self.gbox.addWidget(self.filesList, 2,2,1, 1)
+#         self.gbox.addWidget(self.buttons,   3,1,2, 3)
+
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
         self.histList.itemClicked.connect(self.showCommit)
         self.diffPrvBtn.clicked.connect(self.doDiffPrev1)
         self.diffSelBtn.clicked.connect(self.doDiffSelected)
         self.blameCurBtn.clicked.connect(self.doBlameSelected)
-
+        self.setMaximumWidth(1640)
         
     def sizeHint(self):
         return QSize(32,24)
 
+
+    def delayedCenterWindow(self):
+        s =self.size()
+        s.setWidth(1440)
+        self.resize(s)
+        centerWindow(self, ref=self.pwin)
+        
+            
 
     def buttonFrame(self):
         f = QFrame()
@@ -255,42 +286,85 @@ class HistoryView(QFrame):
             if self.blamBtn[eid] == self.sender():
                 print("Blame ", eid, self.fileItems[eid].text(0))
                 #  self.rgd.doDiff(self.branch, eid, self.prevCommit[eid] )
-                self.prevSize = self.size()
+                self.prevSize   = self.size()
+                self.prevSizes  = self.splitter.sizes() 
                 if self.blameWin is None:
                     self.blameWin = BlameDisplay(self,self.rgd, self.branch,
                                                  self.fileItems[eid].text(0),
                                                  self.currentCommitId,
                                                  embedded=True)
-                    self.gbox.addWidget(self.blameWin,   1,3,2, 1)
+                    self.splitter.addWidget(self.blameWin)
+                    self.prevSizes  += [0]
                 else:
                     self.blameWin.reinit(self.branch, self.fileItems[eid].text(0), self.currentCommitId)
+                self.blameWin.setMinimumWidth(660)
+                self.histList.setMinimumSize(600,480)
+                self.setMaximumWidth(1640)
+                s1, s2, _ = self.prevSizes
+                # 880 is minimum size for histList and selFrame (600+280)
+                # 660 is minium widt for blame
+                # 1640 is now total width
+                extra = s1+s2 -920
+                print([600+int(floor( (s1-600)/920 * 180)),
+                       280+int(floor( (s2-280)/920 * 180)),
+                       660])
+                self.splitter.setSizes([600 +int(floor( (s1-600)/920 * 100)),
+                                        280 +int(floor( (s2-280)/920 * 100)),
+                                        660])
                 self.hideBlameBtn.show()
+                centerWindow(self, ref=self.pwin)
+                break
 
 
     def doBlameSelected(self):
         sel = self.histList.selectedItems()
+        if len(sel) == 0:
+            sel = [self.histList.topLevelItem(0)]
         if len(sel) == 1:
             shortBlobHash   = sel[0].text(4)
             shortCommitHash = sel[0].text(3)
             commitTimeStr   = sel[0].text(7)
             commitTimeInt   = int(datetime.datetime.fromisoformat(commitTimeStr).timestamp())
-            self.prevSize = self.size()
-            print("------>", self.prevSize)
+            
+            self.prevSize   = self.size()
+            self.prevSizes  = self.splitter.sizes() 
             for i, (commitId, commitTime, blobId,_path) in enumerate(self.commits[:-1]):
                 if blobId[:7] == shortBlobHash and commitId[:7] == shortCommitHash and  commitTimeInt == commitTime:
+                    print("\t open blame")
                     if self.blameWin is None:
                         self.blameWin = BlameDisplay(self,self.rgd, self.branch,
                                                      self.filePath,
                                                      commitId,
                                                      embedded=True)
-                        self.gbox.addWidget(self.blameWin,   1,3,2, 1)
+                        self.splitter.addWidget(self.blameWin)
+                        self.prevSizes  += [0]
+
                     else:
-                        self.blameWin.reinit(self.branch, self.filePath,  commitId)   
+                        self.blameWin.reinit(self.branch, self.filePath,  commitId)
+                    self.blameWin.setMinimumWidth(660)
+                    self.histList.setMinimumSize(600,480)
+                    self.setMaximumWidth(1640)
+                    s1, s2, _ = self.prevSizes
+                    # 880 is minimum size for histList and selFrame (600+280)
+                    # 660 is minium widt for blame
+                    # 1640 is now total width
+                    extra = s1+s2 -920
+                    print([600+int(floor( (s1-600)/920 * 180)),
+                           280+int(floor( (s2-280)/920 * 180)),
+                                            660])
+                    self.splitter.setSizes([600 +int(floor( (s1-600)/920 * 100)),
+                                            280 +int(floor( (s2-280)/920 * 100)),
+                                            660])
                     self.hideBlameBtn.show()
+                    centerWindow(self, ref=self.pwin)
+                    break
 
 
     def hideBlame(self):
-        self.blameWin.hide()
+        self.splitter.setSizes(self.prevSizes)
+        self.histList.setMinimumSize(960,480)
+        self.blameWin.setMinimumWidth(1)
+        self.setMaximumWidth(1640)
         self.hideBlameBtn.hide()
         QApplication.processEvents()
         self.resize(self.prevSize)
