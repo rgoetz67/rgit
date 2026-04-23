@@ -252,7 +252,7 @@ class PythonCodeHighligher(QSyntaxHighlighter):
                         self.fmt[i].setFontWeight(QFont.Bold)
                 if "italic" in rule:
                         self.fmt[i].setFontItalic(rule["italic"])
-        print(" %d syntax rtules activates", len(self.rules))
+        print(" %d syntax rules activated"% len(self.rules))
         for i in self.rules:
             print("\t", i, self.rules[i].pattern(), "\t\t",
                   self.fmt[i].foreground().color().name(),
@@ -268,6 +268,10 @@ class PythonCodeHighligher(QSyntaxHighlighter):
                 match = matchIterator.next()
                 self.setFormat(match.capturedStart(), match.capturedLength(), self.fmt[key])
 
+
+
+
+
 class CodeDisplay(QFrame):
 
     def __init__(self, pwin, rgd, path,  blobId , embedded=False):
@@ -279,7 +283,7 @@ class CodeDisplay(QFrame):
         self.setStyleSheet(baseStyle + "CodeDisplay {background-color:#FFFDFA;}\n")
         self.initUI()
             
-        self.fill( blobId)
+        self.fill( path, blobId)
         self.show()
 
 
@@ -336,18 +340,25 @@ class CodeDisplay(QFrame):
 
 
 
-    def fill(self, blobId):
-        if blobId is None:
+    def fill(self, path, blobId):
+        if blobId is None and not os.path.exists(path):
             return False
 
-        blob = self.rgd.repo.get(blobId)
-        if not isinstance(blob, pygit2.Blob):
-            return
-        if blob.is_binary:
-            return False
-        code = blob.data.decode()
-        self.codeDisplay.setPlainText(code)
-        self.codeDisplay.setReadOnly(True)
+        if blobId is None:
+            if os.path.exists(path):
+                with open(path) as inp:
+                    code = inp.read()
+                self.codeDisplay.setPlainText(code)
+                self.codeDisplay.setReadOnly(True)
+        else:
+            blob = self.rgd.repo.get(blobId)
+            if not isinstance(blob, pygit2.Blob):
+                return
+            if blob.is_binary:
+                return False
+            code = blob.data.decode()
+            self.codeDisplay.setPlainText(code)
+            self.codeDisplay.setReadOnly(True)
 
 
     def close(self):

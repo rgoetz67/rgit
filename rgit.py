@@ -258,17 +258,20 @@ class RGitVersions(QMainWindow):
 #                             "revert"  : self.menu["modified"].addAction("Revert local changes"),
 #                             "restore" : self.menu["modified"].addAction("Restore from Origin"),
                             "restore" : self.menu["modified"].addAction("Restore from Local"),
-                            "sep1"    : self.menu["modified"].addSeparator(),
+                            "sep2"    : self.menu["modified"].addSeparator(),
                             "remove"  : self.menu["modified"].addAction("Remove from Repo"),
                             "move"    : self.menu["modified"].addAction("Move File"),
-                            "sep1"    : self.menu["modified"].addSeparator(),
+                            "sep3"    : self.menu["modified"].addSeparator(),
+                            "history" : self.menu["modified"].addAction("History"),
                             "blame"   : self.menu["modified"].addAction("Blame"),
                             "show"    : self.menu["modified"].addAction("Show Content"),
                             
-                            "removeC" : self.menu["commited"].addAction("Remove from Repo"),
-#                            "restoreC": self.menu["commited"].addAction("Restore from Origin"),
-                            "showC"   : self.menu["commited"].addAction("Show Content"),
+
+                            "historyC": self.menu["commited"].addAction("History"),
                             "blameC"  : self.menu["commited"].addAction("Blame"),
+                            "showC"   : self.menu["commited"].addAction("Show Content"),
+                            "sep1c"   : self.menu["commited"].addSeparator(),
+                            "removeC" : self.menu["commited"].addAction("Remove from Repo"),
                             "moveC"   : self.menu["commited"].addAction("Move File"),
 
                             "update"  : self.menu["remoteUp"].addAction("Update to origin"),
@@ -278,17 +281,18 @@ class RGitVersions(QMainWindow):
         self.menuActions["add"].triggered.connect(self.doAddFile)
         self.menuActions["showN"].triggered.connect(self.showFileContent)
         
-        self.menuActions["remove"].triggered.connect(self.doDeleteFile)
+        self.menuActions["remove"].triggered.connect(self.doDeleteFileFromContext)
     #    self.menuActions["revert"].triggered.connect(self.doDummy)
         self.menuActions["restore"].triggered.connect(self.doRestoreFile)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
         self.menuActions["commitL"].triggered.connect(self.doLocalCommitFromContext)
+        self.menuActions["history"].triggered.connect(self.showHistoryFromContext)
         self.menuActions["show"].triggered.connect(self.showFileContent)
         self.menuActions["blame"].triggered.connect(self.showBlameFromContext)
         self.menuActions["move"].triggered.connect(self.doDummy)
 
-        self.menuActions["removeC"].triggered.connect(self.doDeleteFile)
-#        self.menuActions["restoreC"].triggered.connect(self.doDummy)
+        self.menuActions["removeC"].triggered.connect(self.doDeleteFileFromContext)
+        self.menuActions["historyC"].triggered.connect(self.showHistoryFromContext)
         self.menuActions["showC"].triggered.connect(self.showFileContent)
         self.menuActions["blameC"].triggered.connect(self.showBlameFromContext)
         self.menuActions["moveC"].triggered.connect(self.doDummy)
@@ -394,7 +398,7 @@ class RGitVersions(QMainWindow):
 #                                 ["Python Files", [".py"]],
                                  ["Other Files", ["."]]])
 
-        self.gfbox.addWidget(self.fileTree,  1, 1, 1, 3)
+        self.gfbox.addWidget(self.fileTree,  1, 1, 1, 4)
         self.gfbox.addWidget(self.showLocal, 2, 2, 1, 1)
         self.gfbox.addWidget(self.lFileType, 2, 3, 1, 1)
         self.gfbox.addWidget(self.fileTypes, 2, 4, 1, 1)
@@ -1017,14 +1021,19 @@ class RGitVersions(QMainWindow):
             newRepoPath = dirPath + "/" + os.path.basename(self.rgd.tmpRepoPath)
             self.switchRepo("local", newRepoPath)
 
+    def showHistoryFromContext(self):
+        self.__showHistory(self.curContextItem)
         
     def showHistory(self):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
-            fileName = sel[0].text(0)
-            filePath = sel[0].data(0, Qt.UserRole)[0]
-            branch   = sel[0].data(0, Qt.UserRole)[1]
-            entryId  = sel[0].data(0, Qt.UserRole)[2]
+            self.__showHistory(sel[0])
+            
+    def __showHistory(self, item):
+            fileName = item.text(0)
+            filePath = item.data(0, Qt.UserRole)[0]
+            branch   = item.data(0, Qt.UserRole)[1]
+            entryId  = item.data(0, Qt.UserRole)[2]
             print("History for " , filePath, filePath in self.rgd.repoFiles)
             if filePath in self.rgd.repoFiles:
                 for commitId, commitTime, blobId, _ in self.rgd.repoFiles[filePath]["commits"]:
@@ -1039,8 +1048,10 @@ class RGitVersions(QMainWindow):
 
     def showFileContent(self):
         filePath = self.curContextItem.text(0)
+        print(" SHOW : ", filePath, os.path.isdir(filePath), os.path.exists(filePath))
         if not os.path.isdir(filePath):
             blobId   = self.curContextItem.data(0, Qt.UserRole)[2]
+            print("\t\t", blobId)
             self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
         
 
