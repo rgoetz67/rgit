@@ -184,7 +184,7 @@ class RGitVersions(QMainWindow):
             "merge"  :  self.addToolButton("Merge",      progPath+"/icons/merge.png",
                                            None, "Merge"),
             "Delete" :  self.addToolButton("Delete",     progPath+"/icons/delete.png",
-                                           None, "Delete Files from repo"),
+                                           self.doDeleteFile, "Delete Files from repo"),
             "refrsh" :  self.addToolButton("Refresh",    progPath+"/icons/refresh.png",
                                            self.refreshTrees, "Refresh"),
             "rebuild" :  self.addToolButton("Rebuild\nCaches",    progPath+"/icons/rebuild.png",
@@ -361,6 +361,7 @@ class RGitVersions(QMainWindow):
         self.bookmarkBtn.setMaximumWidth(24)
 #        self.bookmarkBtn.setStyleSheet("QPushButton { font-size:16px; font-weight:bold; max-height:20px ; max-width:20px}")
         self.bookmarkBtn.clicked.connect(self.addBookmark)
+        self.bookmarkBtn.setToolTip("Bookmark current Repository/branch")
         self.ibox.addWidget(self.infoLocalRepo, 0)
         self.ibox.addWidget(self.infoCurBranch, 0)
         self.ibox.addWidget(self.infoRemoteRepo, 0)
@@ -757,7 +758,7 @@ class RGitVersions(QMainWindow):
 
 
     def doAddFile(self):
-        # print("add  ", self.curContextItem.text(0))
+        # print("add  ", seilf.curContextItem.text(0))
         f = self.curContextItem.text(0)
         self.rgd.addFile(f)
         self.refreshStatus()
@@ -765,6 +766,26 @@ class RGitVersions(QMainWindow):
 
 
     def doDeleteFile(self):
+        sel = self.fileTree.selectedItems()
+        print(" :::: doDeleteFile", sel)
+        if len(sel) ==1 :
+            fileName = sel[0].text(0)
+            ret = QMessageBox.question(self, "Delete File from Repository?",
+                                       "Do you want to delete\n'%s'\nfrom the repository" % fileName)
+        elif len(sel) > 1:
+            ret = QMessageBox.question(self, "Delete File from Repository?",
+                                       "Do you want to delete\n %d files \nfrom the repository" % len(sel))
+        else:
+            return
+        print(ret == QMessageBox.Yes)
+        for item in sel:
+            fileName = item.text(0)
+            self.rgd.deleteFile(fileName)
+        self.refreshStatus()
+        self.refreshTrees()
+
+        
+    def doDeleteFileFromContext(self):
         print("delete  ", self.curContextItem.text(0))
         f = self.curContextItem.text(0)
         self.rgd.deleteFile(f)
