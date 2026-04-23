@@ -57,7 +57,7 @@ from browser   import OpenRepositoryDialog
 from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
-from functions import loadSettings, saveSettings, baseStyle, timFormat
+from functions import loadSettings, saveSettings, baseStyle, timFormat, splitterStyle
 import pygit2
 
 
@@ -195,57 +195,22 @@ class RGitVersions(QMainWindow):
         self.tools.layout().addWidget(QLabel(""), 100)
         self.infos = self.infoFrameFrame()
 
-        self.branchSelect = QComboBox()
-        self.branchSelect.currentTextChanged.connect(self.switchBranch)
 
-        self.dirTree  = QTreeWidget()
-        self.fileTree = QTreeWidget()
-        self.dirTree.setMinimumSize(400,800)
-        self.fileTree.setMinimumSize(1200,800)
-        self.fileTree.setColumnCount(8)
-        self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags"])
-        self.fileTree.setContextMenuPolicy(Qt.CustomContextMenu);
-        self.fileTree.setSortingEnabled(True)
-        self.dirTree.setHeaderLabels(["Directory","Status"])
+        self.splitter   = QSplitter()
+        self.splitter.setStyleSheet(splitterStyle)
+        self.dirFrame   = self.dirTreeFrame()
+        self.filesFrame = self.fileTreeFrame()
+        self.splitter.addWidget(self.dirFrame)
+        self.splitter.addWidget(self.filesFrame)
+        
 
-        self.showLocal = QCheckBox("Show Local Files")
-        self.lFileType = QLabel("File Types: ")
-        self.fileTypes = SelectionMenu(maxStrLen=40)
-        self.fileTypes.addItems([["C /C++ Files", [".c", ".cc", ".cpp", ".h", ".hpp", ".hh"]],
-                                 ["Python Files", [".py"]],
-                                 ["C# Files", [".cs"]],
-                                 ["Batch Files", [".bat"]],
-                                 ["Shell Scripts", [".sh", ".csh", ".ksh", ".zsh"]],
-                                 ["AWK Files", [".awk", ".gawk"]],
-                                 ["Text Files", [".txt", ".md"]],
-                                 ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
-                                 ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
-                                 ["Java Script Files", [".js"]],
-                                 ["Java Files", [".java", ".class"]],
-                                 ["HTML / CSS Files", [".html", ".htm", ".css"]],
-#                                 ["Python Files", [".py"]],
-#                                 ["Python Files", [".py"]],
-                                 ["Other Files", ["."]]])
+        self.gbox.addWidget(self.tools,         1, 1, 1, 1)
+        self.gbox.addWidget(self.infos,         2, 1, 1, 1)
+        self.gbox.addWidget(self.splitter,      3, 1, 1, 1)
 
-        self.gbox.addWidget(self.tools,         1, 1, 1, 2)
-        self.gbox.addWidget(self.infos,         2, 1, 1, 2)
-        #  self.gbox.addWidget(self.branchSelect,  3, 1, 1, 1)
-        self.gbox.addWidget(self.dirTree,       3, 1, 3, 1)
-        self.gbox.addWidget(self.fileTree,      3, 2, 2, 4)
-        self.gbox.addWidget(self.showLocal,     5, 3, 1, 1)
-        self.gbox.addWidget(self.lFileType,     5, 4, 1, 1)
-        self.gbox.addWidget(self.fileTypes,     5, 5, 1, 1)
-
-        self.gbox.setColumnStretch(1,1)
-        self.gbox.setColumnStretch(2,4)
-        self.gbox.setColumnStretch(3,0)
-        self.gbox.setColumnStretch(4,0)
-        self.gbox.setColumnStretch(5,0)
         self.gbox.setRowStretch(1,0)
         self.gbox.setRowStretch(2,0)
-        self.gbox.setRowStretch(3,0)
-        self.gbox.setRowStretch(4,1)
-        self.gbox.setRowStretch(5,0)
+        self.gbox.setRowStretch(3,1)
         if self.rgd is not None:
             self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
             self.dirTree.addTopLevelItem(self.rootItem)
@@ -273,8 +238,10 @@ class RGitVersions(QMainWindow):
         QShortcut(QKeySequence("Ctrl+r"), self.fileTree, self.doRestore)
         QShortcut(QKeySequence("Ctrl+d"), self.fileTree, self.diffWithPrev)
         QShortcut(QKeySequence("Ctrl+Shift+d"),  self.fileTree, self.diffWithHead)
-        
-
+#        self.dirTree.setMaximumWidth(1200)
+        self.resize(1670,960)
+        self.setMinimumSize(1280,640)
+        self.splitter.setSizes([280,1200])
 
     def initMenus(self):
         self.menu = {"addOnly"  : QMenu(),
@@ -329,6 +296,7 @@ class RGitVersions(QMainWindow):
         self.menuActions["update"].triggered.connect(self.doDummy)
 
 
+
     def toolFrame(self):
         f=QFrame()
         self.tbox =QHBoxLayout()
@@ -340,7 +308,8 @@ class RGitVersions(QMainWindow):
         f=QFrame()
         self.ibox =QHBoxLayout()
         f.setLayout(self.ibox)
-
+        self.ibox.setSpacing(0)
+        self.ibox.setContentsMargins(2,8,2,8)
 
         self.infoLocalRepo  = QLabel("Local Repository: ")
         self.infoCurBranch  = QLabel("Current branch = ")
@@ -359,7 +328,6 @@ class RGitVersions(QMainWindow):
         self.bookmarkBtn.setMaximumHeight(24)
         self.bookmarkBtn.setMinimumWidth(24)
         self.bookmarkBtn.setMaximumWidth(24)
-#        self.bookmarkBtn.setStyleSheet("QPushButton { font-size:16px; font-weight:bold; max-height:20px ; max-width:20px}")
         self.bookmarkBtn.clicked.connect(self.addBookmark)
         self.bookmarkBtn.setToolTip("Bookmark current Repository/branch")
         self.ibox.addWidget(self.infoLocalRepo, 0)
@@ -369,7 +337,79 @@ class RGitVersions(QMainWindow):
         self.ibox.addWidget(QLabel(" "), 1)
         self.ibox.addWidget(self.bookmarkBtn, 0, Qt.AlignRight)
         return f
-        
+
+
+    def dirTreeFrame(self):
+        f = QFrame()
+        self.vdbox = QVBoxLayout()
+        f.setLayout(self.vdbox)
+        self.vdbox.setSpacing(4)
+        self.vdbox.setContentsMargins(1,1,1,1)
+
+        self.branchSelect = QComboBox()
+        self.branchSelect.currentTextChanged.connect(self.switchBranch)
+        self.branchSelect.hide()
+        self.dirTree  = QTreeWidget()
+        self.dirTree.setMinimumSize(400,800)
+        self.dirTree.setHeaderLabels(["Directory","Status"])
+
+#        self.vdbox.addWidget(self.branchSelect,0)
+        self.vdbox.addWidget(self.dirTree,1)
+        self.dirTree.setMinimumWidth(180)
+        f.setMinimumWidth(180)
+
+        return f
+
+
+    def fileTreeFrame(self):
+        f = QFrame()
+        self.gfbox = QGridLayout()
+        f.setLayout(self.gfbox)
+        self.gfbox.setSpacing(4)
+        self.gfbox.setContentsMargins(1,1,1,1)
+
+        self.fileTree = QTreeWidget()
+        self.fileTree.setMinimumSize(1200,800)
+        self.fileTree.setColumnCount(8)
+        self.fileTree.setHeaderLabels(["File","Status", "Commit Hash", "Blob Hash", "Revision", "Author", "Last Change", "Branches", "Tags"])
+        self.fileTree.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.fileTree.setSortingEnabled(True)
+
+        self.showLocal = QCheckBox("Show Local Files")
+        self.lFileType = QLabel("File Types: ")
+        self.fileTypes = SelectionMenu(maxStrLen=40)
+        self.fileTypes.addItems([["C /C++ Files", [".c", ".cc", ".cpp", ".h", ".hpp", ".hh"]],
+                                 ["Python Files", [".py"]],
+                                 ["C# Files", [".cs"]],
+                                 ["Batch Files", [".bat"]],
+                                 ["Shell Scripts", [".sh", ".csh", ".ksh", ".zsh"]],
+                                 ["AWK Files", [".awk", ".gawk"]],
+                                 ["Text Files", [".txt", ".md"]],
+                                 ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
+                                 ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
+                                 ["Java Script Files", [".js"]],
+                                 ["Java Files", [".java", ".class"]],
+                                 ["HTML / CSS Files", [".html", ".htm", ".css"]],
+#                                 ["Python Files", [".py"]],
+#                                 ["Python Files", [".py"]],
+                                 ["Other Files", ["."]]])
+
+        self.gfbox.addWidget(self.fileTree,  1, 1, 1, 3)
+        self.gfbox.addWidget(self.lFileType, 2, 2, 1, 1)
+        self.gfbox.addWidget(self.fileTypes, 2, 3, 1, 1)
+        self.gfbox.setColumnStretch(1,1)
+        self.gfbox.setColumnStretch(2,0)
+        self.gfbox.setColumnStretch(3,0)
+        self.gfbox.setRowStretch(1,1)
+        self.gfbox.setRowStretch(2,0)
+        self.fileTree.setMinimumHeight(480)
+        self.fileTree.setMinimumWidth(640)
+        self.fileTree.setMaximumWidth(9640)
+        f.setMinimumWidth(640)
+
+        return f
+
+
 
     def addToolButton(self, text, iconFile, func, tooltip):
         toolButton = QToolButton()
