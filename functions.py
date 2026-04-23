@@ -24,7 +24,7 @@ arrowImg      = "%s/icons/arrowDown.png" % baseDir
 checkOnImg    = "%s/icons/checkBoxCheck.png" % baseDir
 checkInterImg = "%s/icons/checkBoxInter.png" % baseDir
 checkOffImg   = "%s/icons/checkBoxUncheck.png" % baseDir
-print("???", checkOnImg, os.path.exists(checkOnImg) )
+# print("???", checkOnImg, os.path.exists(checkOnImg) )
 baseStyle  = "QTreeWidget {font-size:14px;border: 1px solid black; font-size:14px}\n"
 baseStyle += "QTreeView {selection-background-color:#3DAEE9; selection-color :white; background-color:white; border:1px solid #00AA00; border-radius:2px; font-size:14px}\n"
 baseStyle += "QTreeView::item:selected {background-color: #88BBFF; color:#000000}\n"
@@ -45,7 +45,7 @@ baseStyle += "QCheckBox{font-size:14px; background-color:white; font-weight:bold
 baseStyle += "QCheckBox::indicator {border: 1px solid #000000; border-radius:2px; margin-left:1px;margin-bottom:1px;  height:15px; width:15px;}"
 baseStyle += "QCheckBox::indicator:checked {  border: 1px solid black; image: url('%s'); height:15px; width:15px;}\n" %checkOnImg
 baseStyle += "QCheckBox::indicator:indeterminate {  border: 1px solid black; image: url('%s'); height:15px; width:15px; }\n" %checkInterImg
-baseStyle += "\n"
+baseStyle += "QMessageBox {font-weight:bold; font-size:16px; min-width:640px; width:640px; color:green}\n"
 baseStyle += "\n"
 baseStyle += "\n"
 baseStyle += "\n"

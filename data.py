@@ -436,6 +436,7 @@ class RGitData():
                 nextTree = self.repo.get(entry.id)
                 self.__scanBranchTree(branch, nextTree, path, commitId, commitTime)
 
+
     def __scanIndexTree(self, branch, tree, parentPath):
         files = []
         for entry in tree:
@@ -1259,11 +1260,19 @@ class RGitData():
                         print("CONFLICTS:")
                         print(e)
                         print(">>>>", self.repo.index.conflicts)
-                        if self.repo.index.conflicts is not None:
-                            for conflict in self.repo.index.conflicts:
-                                print('Conflicts found in:', conflict[0].path)
-                            raise AssertionError('Conflicts, ahhhhh!!')
-                        return False
+                        conflicts = self.__detectPotentialConflicts()
+                        conflictMesg = ["We detected conflicts while merging /pulling changes from remote:", "",
+                                        "    Message from merge:  " + str(e),
+                                        "",
+                                        "Potential conflicts are: "]
+                        for f, m in conflicts.items():
+                            conflictMesg += ["       '%s' : %s" %(f,m)]
+                        conflictMesg +["", "Please check these files and clear the conflict"]
+                        print("\n")
+                        print("\n".join(conflictMesg))
+                        print("================================================================================================\n\n")
+                       
+                        return False, ["Conflicts in Merge / Pull",  "\n".join(conflictMesg), len(conflictMesg)]
 
                     user = self.getAuthor()
                     if user is None:
@@ -1289,7 +1298,48 @@ class RGitData():
             self.latestCommit[branch] = self.getBranchFiles(branch)
             self.collectCommits(branch,verbose = True)
         self.postProcess()
- 
+        return True, None
+
+    def __detectPotentialConflicts(self):
+        conflicts = {}
+        if self.repo.index.conflicts is not None:
+            for conflict in self.repo.index.conflicts:
+                print('Conflicts found in:', conflict[0].path)
+                raise AssertionError('Conflicts, ahhhhh!!')
+        self.indexFiles["tmp"]["."] = {"id":"", "name":".", "branch":"tmp", "files":[]}
+        tid = self.repo.index.write_tree()
+        tree = self.repo.get(self.repo.index.write_tree())
+        self.__scanIndexTree("tmp", tree, ".")
+
+        self.branchFiles["tmp"]["."] = {"id":"", "name":".", "branch":"tmp", "files":[]}
+        commit = self.repo.revparse_single(self.curRemoteBranch)
+        tree   = commit.tree
+        self.__scanBranchTree("tmp", tree, ".", str(commit.id), commit.commit_time)
+        for f in self.indexFiles["tmp"]:
+            if f != "." and not os.path.isdir(f):
+                remStatus = "not on remote"
+                if f in self.branchFiles["tmp"]:
+                    remStatus = "on remote"
+                status = self.repo.status_file(f[2:]).name
+                if status != "CURRENT":
+                    print("%-32s: %-16s  vs %s" %(f, status, remStatus))
+                    if f not in conflicts and remStatus == "on Remote":
+                        conflicts[f] = "is on remote but has local status %s" % status
+        for f in self.branchFiles["tmp"]:
+            if f != ".":
+                localStatus = "NEW ON REMOTE"
+                if f in self.indexFiles["tmp"]:
+                    if os.path.isdir(f):
+                        localStatus = "CURRENT(dir)"
+                    else:
+                        localStatus = self.repo.status_file(f[2:]).name
+                if os.path.exists(f) and localStatus[:7] != "CURRENT":
+                    print("%-32s:" %f, os.path.exists(f), localStatus)
+                    conflicts[f] = "exists locally (unversioned) and shall be pulled from remote"
+
+        del self.indexFiles["tmp"]
+        del self.branchFiles["tmp"]
+        return conflicts
 
 
     def resetIndex(self):

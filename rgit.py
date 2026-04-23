@@ -61,8 +61,15 @@ from functions import loadSettings, saveSettings, baseStyle, timFormat
 import pygit2
 
 
-
-
+class RTMessageBox(QMessageBox):
+    def __init__(self, icon, title, msg, btn, pwin):
+        super().__init__(icon, "RT"+title, msg, btn, pwin)
+        self.ll = max( [len(l)   for l in msg.split("\n")])
+        
+    def resizeEvent(self, ev):
+        print("!! resizeEvent",ev.size())
+        self.setFixedWidth(int(self.ll * 7.5+32))
+        return super().resizeEvent(ev)
 
 
 class RToolButton(QToolButton):
@@ -871,7 +878,11 @@ class RGitVersions(QMainWindow):
 
     def doPull(self):
         self.blockRefresh = True
-        self.rgd.pull()
+        sucess, msg = self.rgd.pull()
+        if not sucess:
+            msg = RTMessageBox(QMessageBox.Critical, msg[0], msg[1], QMessageBox.Ok, self)
+            msg.setStyleSheet("RTMessageBox {font-weight:bold; font-size:16px; min-width:640px; width:640px; color:green}\n")
+            ret =msg.exec()
         self.blockRefresh = False
         self.refreshTrees()
 
