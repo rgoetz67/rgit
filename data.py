@@ -44,6 +44,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui     import *
 from PySide6.QtCore    import *
 from functions import saveSettings, globalTmpPath
+import multiprocessing
 
 
 tmpRepos = []
@@ -231,19 +232,8 @@ class RGitData():
             self.globalConfig = {}
 
         print(">>>>> globalConfig :",  self.globalConfig)
-        
-        # FXIME better detection of available ssh keys
-        if sys.platform == "win32":
-            if "HOME" in os.environ:
-                sshPath = os.environ["HOME"]+"\\.ssh"
-            elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
-                sshPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.ssh"
-            if os.path.exists(sshPath):
-                self.privKeyFile = sshPath+"\\id_rsa"
-                self.publKeyFile = sshPath+"\\id_rsa.pub"
-        else:
-            self.privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
-            self.publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
+
+        self.sshKeys = RGitData.getSSHkeys()
 
         self.failedToOpen = False
         if isinstance(repoPath, str):
@@ -325,7 +315,8 @@ class RGitData():
                         break
 
         self.curRemoteUrl    = self.repo.remotes[self.curRemote].url
-        self.authCallBack    = self.authCallBack or self.getAuthCallBack(self.curRemoteUrl)
+        if self.authCallBack is None:
+            self.authCallBack    = RGitData.getAuthCallBack(self.creds, self.sshKeys, self.curRemoteUrl)
         self.primaryBranches = [localPrim, remotePrim]
 
         t0 = time.time()
@@ -346,16 +337,35 @@ class RGitData():
         self.collectCommitMessages()
 
 
-    def getAuthCallBack(self, remoteRepoUrl):
-        if remoteRepoUrl in self.creds:
-            auth = self.creds[remoteRepoUrl]
+    @classmethod
+    def getSSHkeys(cls):
+        privKeyFile = None
+        publKeyFile = None
+        if sys.platform == "win32":
+            if "HOME" in os.environ:
+                sshPath = os.environ["HOME"]+"\\.ssh"
+            elif "HOMEDRIVE" in os.environ and "HOMEPATH" in os.environ:
+                sshPath = os.environ["HOMEDRIVE"]+os.environ["HOMEPATH"]+"\\.ssh"
+            if os.path.exists(sshPath):
+                privKeyFile = sshPath+"\\id_rsa"
+                publKeyFile = sshPath+"\\id_rsa.pub"
+        else:
+            privKeyFile = os.environ["HOME"]+"/.ssh/id_rsa"
+            publKeyFile = os.environ["HOME"]+"/.ssh/id_rsa.pub"
+        return privKeyFile, publKeyFile
+
+
+    @classmethod
+    def getAuthCallBack(cls, creds, keys, remoteRepoUrl):
+        if remoteRepoUrl in creds:
+            auth = creds[remoteRepoUrl]
             if auth == "ssh":
-                authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+                authCallBack = GitCallbacks(priv_key=keys[0], pub_key=keys[1])
             else:
                 authCallBack = GitCallbacks(user= auth[0], password=auth[1])
         else:
             # FIXME under windows use pass
-            authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+            authCallBack = GitCallbacks(priv_key=keys[0], pub_key=keys[1])
         return authCallBack
 
     
@@ -405,7 +415,7 @@ class RGitData():
                     self.failMessage="Other Error"
                     return None, None
         else: # not http
-            authCallBack = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
+            authCallBack = GitCallbacks(priv_key=self.sshKeys[0], pub_key=self.sshKeys[1])
             try:
                 authCallBack = GitCallbacks(user= auth[0], password=auth[1])
                 repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
@@ -647,6 +657,14 @@ class RGitData():
             if len(self.lastCommitMessages) >n:
                 break
  
+
+
+    def updatePrimary(self):
+        for branch in self.primaryBranches:
+            self.latestCommit[branch] = self.getBranchFiles(branch)
+            self.collectCommits(branch,verbose = True)
+        self.postProcess()
+
 
 
     def updateLocal(self, stopCommitId, indexOnly=False):
@@ -1196,11 +1214,6 @@ class RGitData():
         for remote in self.repo.remotes:
             if remote.name == remote_name:
                 remote.push(['refs/heads/'+branch], callbacks = self.authCallBack)
-#                 if self.auth == "ssh":
-#                     cb = GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile)
-#                 else:
-#                     cb = GitCallbacks(user= self.auth[0], password=self.auth[1])
-#                 remote.push(['refs/heads/'+branch], callbacks = cb)
 
 
     def fetch(self, remote_name=None, branch=None):
@@ -1209,10 +1222,12 @@ class RGitData():
         remote_name = remote_name or self.curRemote
         # print("fetch ", branch, remote_name)
         
+        print("fetch remote intr after %7.2fs" %(time.time() -t0))
         for remote in self.repo.remotes:
             if remote.name == remote_name:
                 remote.fetch( callbacks=self.authCallBack)
-                # remote.fetch( callbacks=GitCallbacks(priv_key=self.privKeyFile, pub_key=self.publKeyFile))
+
+        print("fetch remote intr after %7.2fs" %(time.time() -t0))
         for branch in self.primaryBranches:
             self.latestCommit[branch] = self.getBranchFiles(branch)
             self.collectCommits(branch)
@@ -1411,4 +1426,10 @@ class RGitData():
             out.write(blob.data)
         self.repo.index.write()
         self.updateLocal(None)  # stopCommitId is not usaed if indexOnly=True
+
+
+    
+
+
+    
 

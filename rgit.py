@@ -58,6 +58,8 @@ from blame     import BlameDisplay, CodeDisplay
 from selectionMenu import SelectionMenu
 from collections import defaultdict
 from functions import loadSettings, saveSettings, baseStyle, timFormat, splitterStyle
+
+from bg import BackgroundTasks
 import pygit2
 
 
@@ -135,10 +137,21 @@ class RGitVersions(QMainWindow):
         self.show()
         self.updTimer = QTimer()
         self.updTimer.timeout.connect(self.refreshStatus)
-        self.updTimer.setInterval(5000)
+        self.updTimer.setInterval(1000)
         self.updTimer.start()
         self.resizeDirTree()
         self.resizeFileTree()
+        self.bg = BackgroundTasks()
+        self.bg.refetched.connect(self.updateRGitData)
+        self.bgPool = QThreadPool()
+        self.bgPool.setMaxThreadCount(2)
+        self.bgPool.setExpiryTimeout(-1)
+        self.bgPool.start(self.bg)
+        self.bg.update(self.rgd,"updateFull")
+        self.refetchTimer = QTimer()
+        self.refetchTimer.timeout.connect(self.bg.refetch)
+        self.refetchTimer.setInterval(5000)
+        self.refetchTimer.start()
 
 
     def initUI(self):
@@ -462,6 +475,11 @@ class RGitVersions(QMainWindow):
                 btn.setEnabled(False)
 
 
+
+    def updateRGitData(self):
+        self.rgd.updatePrimary()
+
+
     def switchBranch(self, branch):
         self.rgd.getBranchData(branch)
         # print(" FIXME: switch branch on file system")
@@ -733,12 +751,16 @@ class RGitVersions(QMainWindow):
         self.resizeFileTree()
         
 
+        
+
+        
+
+
     def refreshStatus(self, allCommits = False):
         if self.rgd is None or not self.isFilled or self.blockRefresh:
             return
-        self.rgd.fetch()
         t0 =time.time()
-        print("  refreshStatus  ", self.blockRefresh)
+        # print("  refreshStatus  ", self.blockRefresh)
         # FIXME tree like dir state update
         p = self.dirStatusRefreshPointer
         if not allCommits:
@@ -1129,7 +1151,12 @@ class RGitVersions(QMainWindow):
         pass
     
     def closeApp(self):
+        print("CLOSE APP")
+        self.bg.stop()
         self.updTimer.stop()
+        while not self.bg.terminated :
+            time.sleep(0.2)
+        print(":CLOSE")
         super().close()
 
 
