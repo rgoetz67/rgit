@@ -308,7 +308,8 @@ class CodeDisplay(QFrame):
         QShortcut(QKeySequence("Escape"),  self, self.close)
         QShortcut(QKeySequence("Alt+q"),  self, self.quit)
         self.setMinimumWidth(920)
-
+        self.setMinimumHeight(640)
+        self.resize(920,1020)
 
     def buttonFrame(self):
         f = QFrame()
@@ -335,7 +336,7 @@ class CodeDisplay(QFrame):
             return False
 
         if path is not None:
-            if blobid is not None:
+            if blobId is not None:
                 commitId, _ = self.rgd.commitByBlob.get(blobId, [None, None])
                 if commitId is not None:
                     self.setWindowTitle("RGit: Content of '%s' @ commit %s"% (path, commitId[:7]))
