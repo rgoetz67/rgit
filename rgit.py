@@ -1198,10 +1198,15 @@ class RGitVersions(QMainWindow):
  
 if __name__ == '__main__':
 
+    QLocale.setDefault(QLocale(QLocale.English, QLocale.UnitedStates))
+
     app  = QApplication(sys.argv)
     win  = RGitVersions(sys.argv)
     win.setWindowTitle("RGit")
     signal.signal(signal.SIGINT, win.closeApp)
+    appIcon = QIcon()
+    appIcon.addFile("icons/rgit.ico")
+    app.setWindowIcon(appIcon)
 
 
 
