@@ -329,7 +329,7 @@ class RGitData():
                 self.latestCommit[branch] =  self.getBranchFiles(branch)
         print("------> %7.2fs" %(time.time()-t0))
         for branch in self.primaryBranches:
-            self.collectCommits(branch, verbose=True)
+            self.collectCommits(branch, verbose=False)
             print("------> %7.2fs" %(time.time()-t0))
         self.collectTags()
         self.postProcess()
@@ -605,6 +605,7 @@ class RGitData():
                     self.repoFiles[path] = self.__newRepoFile(os.path.basename(path),
                                                               isDir=path[-1]=="/")
                     self.updated["rf"] = True
+                commits += self.repoFiles[path]["commits"] 
                 commits = list(sorted(commits,  key = lambda x : -x[1]))
                 if len(commits) >0 :
                     activeCommits = []
@@ -644,7 +645,7 @@ class RGitData():
         for f in self.branchFiles[self.curRemoteBranch]:
             if f not in self.branchFiles[self.curBranch]:
                 self.remoteOnlyFiles.append(f)
- 
+
 
 
 
@@ -1308,11 +1309,7 @@ class RGitData():
                     self.repo.state_cleanup()
                 else:
                     raise AssertionError('Unknown merge analysis result')
-        # self.updateLocal(None)
-        for branch in self.primaryBranches:
-            self.latestCommit[branch] = self.getBranchFiles(branch)
-            self.collectCommits(branch,verbose = True)
-        self.postProcess()
+        self.updatePrimary()
         return True, None
 
     def __detectPotentialConflicts(self):
