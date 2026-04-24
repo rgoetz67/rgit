@@ -399,14 +399,15 @@ class RGitVersions(QMainWindow):
                                  ["Python Files", [".py"]],
                                  ["C# Files", [".cs"]],
                                  ["Batch Files", [".bat"]],
+                                 ["Java Files", [".java", ".class"]],
+                                 ["Java Script Files", [".js"]],
                                  ["Shell Scripts", [".sh", ".csh", ".ksh", ".zsh"]],
                                  ["AWK Files", [".awk", ".gawk"]],
                                  ["Text Files", [".txt", ".md"]],
-                                 ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
-                                 ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
-                                 ["Java Script Files", [".js"]],
-                                 ["Java Files", [".java", ".class"]],
+                                 ["JSON Files", [".json"]],
                                  ["HTML / CSS Files", [".html", ".htm", ".css"]],
+                                ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
+                                 ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
 #                                 ["Python Files", [".py"]],
 #                                 ["Python Files", [".py"]],
                                  ["Other Files", ["."]]])
@@ -1074,7 +1075,7 @@ class RGitVersions(QMainWindow):
         if not os.path.isdir(filePath):
             blobId   = self.curContextItem.data(0, Qt.UserRole)[2]
             print("\t\t", blobId)
-            self.codeDisplay = CodeDisplay(self, self.rgd,  filePath, blobId)
+            self.codeDisplay = CodeDisplay(self, self.config, self.rgd,  filePath, blobId)
         
 
     def resetIndex(self):

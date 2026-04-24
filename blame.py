@@ -206,34 +206,25 @@ class BlameDisplay(QFrame):
         self.pwin.close()
 
 
-class PythonCodeHighligher(QSyntaxHighlighter):
-    def __init__(self, doc):
+class CodeHighligher(QSyntaxHighlighter):
+    def __init__(self, config, doc):
         super().__init__(doc)
+        self.config = config
 
         self.rules = {}
         self.fmt = {}
         self.ruleSets = {}
         rf = os.path.dirname(__file__)+"/syntaxRules.json"
-        print(":::", rf, os.path.exists(rf), __file__)
         if os.path.exists(rf):
             with open(rf) as inp:
                 self.ruleSets =json.load(inp)
+        for ext, rules in self.config.get("syntaxRules", {}).items():
+            self.ruleSets[ext] = rules
 
         self.bf = QTextCharFormat()
         self.bf.setForeground(Qt.red)
         self.bf.setFontWeight(QFont.Bold)
         
-#         self.rules = { "self": QRegularExpression("self"),
-#                   "def": QRegularExpression("def .*?\("),
-#                   "com": QRegularExpression("#.*"),
-#                   }
-#         self.fmt   = { k : QTextCharFormat()  for k in self.rules}
-#         self.fmt["self"].setForeground(Qt.darkBlue)
-#         self.fmt["self"].setFontWeight(QFont.Bold)
-#         self.fmt["def"].setForeground(Qt.darkRed)
-#         self.fmt["def"].setFontWeight(QFont.Bold)
-#         self.fmt["def"].setForeground(Qt.green)
-#         self.fmt["def"].setFontWeight(QFont.Bold)
 
     def activate(self, ext):
         self.rules = {}
@@ -274,9 +265,10 @@ class PythonCodeHighligher(QSyntaxHighlighter):
 
 class CodeDisplay(QFrame):
 
-    def __init__(self, pwin, rgd, path,  blobId , embedded=False):
+    def __init__(self, pwin, config, rgd, path,  blobId , embedded=False):
         super().__init__()
         self.pwin     = pwin
+        self.config   = config
         self.rgd      = rgd
         self.path     = path
         self.embedded = embedded
@@ -298,10 +290,8 @@ class CodeDisplay(QFrame):
         self.codeDisplay.setMinimumSize(920,480)
         font = QFont("Liberation Mono",12)
         self.codeDisplay.setCurrentFont(font)
-        self.highlighter = PythonCodeHighligher(self.codeDisplay.document())
+        self.highlighter = CodeHighligher(self.config, self.codeDisplay.document())
         self.highlighter.activate(self.path.split(".")[-1])
-
-
 
         self.buttons   =self.buttonFrame()
 
