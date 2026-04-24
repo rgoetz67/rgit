@@ -665,7 +665,7 @@ class RGitData():
     def updatePrimary(self):
         for branch in self.primaryBranches:
             self.latestCommit[branch] = self.getBranchFiles(branch)
-            self.collectCommits(branch,verbose = True)
+            self.collectCommits(branch,verbose = False)
         self.postProcess()
 
 
@@ -1205,10 +1205,11 @@ class RGitData():
         print(">>>>> NEW COMMIT = ", new_commit)
         if pushToRemote:
             self.push()
-        for branch in self.primaryBranches:
-            self.latestCommit[branch] = self.getBranchFiles(branch)
-            self.collectCommits(branch,verbose = True)
-        self.postProcess()
+        self.updatePrimary()
+#         for branch in self.primaryBranches:
+#             self.latestCommit[branch] = self.getBranchFiles(branch)
+#             self.collectCommits(branch,verbose = True)
+#         self.postProcess()
         return True
 
 
@@ -1231,10 +1232,11 @@ class RGitData():
                 remote.fetch( callbacks=self.authCallBack)
 
         print("fetch remote intr after %7.2fs" %(time.time() -t0))
-        for branch in self.primaryBranches:
-            self.latestCommit[branch] = self.getBranchFiles(branch)
-            self.collectCommits(branch)
-        self.postProcess()
+        self.updatePrimary()
+#         for branch in self.primaryBranches:
+#             self.latestCommit[branch] = self.getBranchFiles(branch)
+#             self.collectCommits(branch)
+#         self.postProcess()
 #         commit = self.repo.revparse_single(branch)
 #         if str(commit.id) != self.latestCommit[branch]:
 #             self.latestCommit[branch] = self.getBranchFiles(branch)
@@ -1391,10 +1393,11 @@ class RGitData():
             self.repo.index.add(f)
         self.repo.index.write()
         self.addedFiles.add(f)
-        for branch in self.primaryBranches:
-            self.latestCommit[branch] = self.getBranchFiles(branch)
-            self.collectCommits(branch,verbose = True)
-        self.postProcess()
+        self.updatePrimary()
+#         for branch in self.primaryBranches:
+#             self.latestCommit[branch] = self.getBranchFiles(branch)
+#             self.collectCommits(branch,verbose = True)
+#         self.postProcess()
 
 
         
