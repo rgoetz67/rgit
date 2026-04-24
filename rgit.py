@@ -710,7 +710,7 @@ class RGitVersions(QMainWindow):
 
     def showFileContextMenu(self, p):
         item = self.fileTree.itemAt(p)
-        print("custom menu at ",p, item, item.text(0), item.text(1))
+        # print("custom menu at ",p, item, item.text(0), item.text(1))
         status = item.text(1)
         if status == "not versioned":
             self.curContextItem = item
@@ -831,37 +831,52 @@ class RGitVersions(QMainWindow):
 
 
     def doAddFile(self):
-        # print("add  ", seilf.curContextItem.text(0))
-        f = self.curContextItem.text(0)
-        self.rgd.addFile(f)
+        sel = self.fileTree.selectedItems()
+        addAll = False
+        for item in sel:
+            if item == self.curContextItem:
+                addAll=True
+
+        if addAll:
+            for item in sel:
+                self.rgd.addFile(item.text(0))
+        else:
+            self.rgd.addFile(self.curContextItem.text(0))
         self.refreshStatus()
         self.refreshTrees()
 
 
     def doDeleteFile(self):
-        sel = self.fileTree.selectedItems()
-        print(" :::: doDeleteFile", sel)
-        if len(sel) ==1 :
-            fileName = sel[0].text(0)
-            ret = QMessageBox.question(self, "Delete File from Repository?",
-                                       "Do you want to delete\n'%s'\nfrom the repository" % fileName)
-        elif len(sel) > 1:
-            ret = QMessageBox.question(self, "Delete File from Repository?",
-                                       "Do you want to delete\n %d files \nfrom the repository" % len(sel))
-        else:
-            return
-        print(ret == QMessageBox.Yes)
-        for item in sel:
-            fileName = item.text(0)
-            self.rgd.deleteFile(fileName)
-        self.refreshStatus()
-        self.refreshTrees()
+        self.__doDeleteFiles(self.fileTree.selectedItems())
 
         
     def doDeleteFileFromContext(self):
-        print("delete  ", self.curContextItem.text(0))
-        f = self.curContextItem.text(0)
-        self.rgd.deleteFile(f)
+        sel = self.fileTree.selectedItems()
+        addAll = False
+        for item in sel:
+            if item == self.curContextItem:
+                addAll=True
+        if addAll:
+            self.__doDeleteFiles(sel)
+        else:
+            self.__doDeleteFiles([self.curContextItem])
+
+
+
+    def __doDeleteFiles(self, items):
+        if len(items) ==1 :
+            fileName = items[0].text(0)
+            ret = QMessageBox.question(self, "Delete File from Repository?",
+                                       "Do you want to delete\n'%s'\nfrom the repository" % fileName)
+        elif len(items) > 1:
+            ret = QMessageBox.question(self, "Delete File from Repository?",
+                                       "Do you want to delete\n %d files \nfrom the repository" % len(items))
+        else:
+            return
+
+        for item in items:
+            fileName = item.text(0)
+            self.rgd.deleteFile(fileName)
         self.refreshStatus()
         self.refreshTrees()
 
@@ -974,9 +989,10 @@ class RGitVersions(QMainWindow):
         self.blockRefresh = True
         sucess, msg = self.rgd.pull()
         if not sucess:
-            msg = RTMessageBox(QMessageBox.Critical, msg[0], msg[1], QMessageBox.Ok, self)
-            msg.setStyleSheet("RTMessageBox {font-weight:bold; font-size:16px; min-width:640px; width:640px; color:green}\n")
-            ret =msg.exec()
+            if msg is not None:
+                msg = RTMessageBox(QMessageBox.Critical, msg[0], msg[1], QMessageBox.Ok, self)
+                msg.setStyleSheet("RTMessageBox {font-weight:bold; font-size:16px; min-width:640px; width:640px; color:green}\n")
+                ret =msg.exec()
         self.blockRefresh = False
         self.refreshTrees()
 

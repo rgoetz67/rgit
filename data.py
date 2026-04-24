@@ -1255,7 +1255,7 @@ class RGitData():
                       merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL)
                 # Up to date, do nothing
                 if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
-                    return
+                    return True, None
                 
                 # We can just fastforward
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
@@ -1297,7 +1297,7 @@ class RGitData():
                             user = self.getAuthor()
                             if user is None:
                                 user = self.getAuthor()
-                                return False
+                                return False, None
                     tree = self.repo.index.write_tree()
                     commit = self.repo.create_commit('HEAD',
                                                 user,
