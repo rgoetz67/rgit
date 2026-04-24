@@ -1,10 +1,12 @@
 
-REM set TARGET='C:\LemnaTec\Software\Programs\LemnaExperiment\startLemnaExperiment.bat'
-REM set SHORTCUT='%HOMEDRIVE%%HOMEPATH%\Desktop\LemnaExperiment.lnk'
-REM set ICON='C:\LemnaTec\Software\Programs\LemnaExperiment\LemnaExperiment.ico'
-REM set PWS=powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile
+set "var=%string1%%string2%%string3%"
 
-REM %PWS% -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut(%SHORTCUT%); $S.TargetPath = %TARGET%; $S.IconLocation = %ICON%; $S.Save()"
+set "TARGET='%~dp0%rgit.bat'"
+set SHORTCUT='%HOMEDRIVE%%HOMEPATH%\Desktop\RGit.lnk'
+set "ICON='%~dp0%icons\rgit.ico'"
+set PWS=powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile
+
+%PWS% -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut(%SHORTCUT%); $S.TargetPath = %TARGET%; $S.IconLocation = %ICON%; $S.Save()"
 
 
 py -m venv rg
