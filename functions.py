@@ -144,7 +144,7 @@ def centerWindow(win, bySizeHint=False, ref=None):
     else:
         ww   = win.width()
         wh   = win.height()
-    print(" $$ CW:" , ref)
+    # print(" $$ CW:" , ref)
     if ref is not None:
         x = ref.pos().x() + (ref.width() >>1)  - (ww>>1)
         y = ref.pos().y() + (ref.height() >>1) - (wh>>1)

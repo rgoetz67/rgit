@@ -630,10 +630,12 @@ class RGitData():
                     if not self.repoFiles[path]["isDir"]:
                         print("No commits for ", path, "\t", self.repoFiles[path]["isDir"])
         # print(" --- postProcess update cbb: ",  len(self.repoFiles["./justfile"]["commits"]))
+        self.pathByBlob = {}
         for path in self.repoFiles:
             for cid, cts, eid, _ in self.repoFiles[path]["commits"]:
                 self.commitByBlob[eid].append([cid, cts])
-            
+                self.pathByBlob[eid] = path
+                
         for p in self.repoFiles:
             for commitId, _cts, blobId, path in self.repoFiles[p]["commits"]:
                 self._newFilesInCommit[commitId].add((blobId, path))

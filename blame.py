@@ -334,6 +334,23 @@ class CodeDisplay(QFrame):
         if blobId is None and not os.path.exists(path):
             return False
 
+        if path is not None:
+            if blobid is not None:
+                commitId, _ = self.rgd.commitByBlob.get(blobId, [None, None])
+                if commitId is not None:
+                    self.setWindowTitle("RGit: Content of '%s' @ commit %s"% (path, commitId[:7]))
+                else:
+                    self.setWindowTitle("RGit: Content of '%s'"% path)
+            else:
+                self.setWindowTitle("RGit: Content of '%s'"% path)
+        else:
+            commitId, _ = self.rgd.commitByBlob.get(blobId, [None, None])
+            path        = self.rgd.pathByBlob.get(blobId, "?????")
+            if commitId is not None:
+                self.setWindowTitle("RGit: Content of '%s' @ commit %s"% (path, commitId[:7]))
+            else:
+                self.setWindowTitle("RGit: Content of '%s'"% path)
+            
         if blobId is None:
             if os.path.exists(path):
                 with open(path) as inp:

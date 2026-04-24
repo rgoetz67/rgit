@@ -46,14 +46,13 @@ class CommitDialog(QFrame):
         self.revertBtn = {}
         self.setStyleSheet(baseStyle + "CommitDialog {background-color:#FFFDFA;}\n")
         self.initUI()
-#         QApplication.processEvents()
-#         time.sleep(0.1)
-#         QApplication.processEvents()
         self.fill(files)
         QApplication.processEvents()
         self.pushToRem.setChecked(push)
-        # print("      push = ", push)
-        # self.show()
+        if push:
+            self.setWindowTitle("RGit: Commit & Push Files")
+        else:
+            self.setWindowTitle("RGit: Commit Files")
         centerWindow(self, ref=self.pwin)
 
 
