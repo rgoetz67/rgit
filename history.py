@@ -241,8 +241,6 @@ class HistoryView(QFrame):
                 item = QTreeWidgetItem([path, "updated"])
                 item.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator);
                 prevBlobId = self.rgd.previousCommit(self.branch, self.filePath, str(commit.id),commit.commit_time)
-#                 if prevBlobId is not None:
-#                     item.setData(0, Qt.UserRole , (str(entry.id), prevBlobId))
                 self.filesList.addTopLevelItem(item)
                 
                 self.diffBtn[eid] = QPushButton("Diff Previous")
@@ -261,9 +259,10 @@ class HistoryView(QFrame):
         tw = 160
         self.filesList.resizeColumnToContents(1)
         tw += self.filesList.columnWidth(1)
-        print("---->", self.filesList.width(), self.filesList.width() -24 -tw)
+        # print("---->", self.filesList.width(), self.filesList.width() -24 -tw)
         self.filesList.setColumnWidth(0, self.filesList.width() -24 -tw)
-        print("\t\t\t", 0, self.filesList.columnWidth(0))
+        # print("\t\t\t", 0, self.filesList.columnWidth(0))
+
 
     def countItems(self):
         count = 0
@@ -382,13 +381,16 @@ class HistoryView(QFrame):
                        commitId[:7]  == shortCommitHash and \
                        commitTimeInt == commitTime:
                     # FIXME copies?
-                    self.rgd.doDiff(self.branch, self.filePath, blobId, self.filePath, self.commits[i+1][2])
+                    self.rgd.doDiff(self.branch,
+                                    self.filePath, self.commits[i+1][2],    # prev blob
+                                    self.filePath, blobId)                  # current blob
 
     def doDiffPrev2(self):
         for eid in self.diffBtn:
             if self.diffBtn[eid] == self.sender():
-                # FIXME copies?
-                self.rgd.doDiff(self.branch, self.filePath, eid, self.filePath, self.prevCommit[eid] )
+                self.rgd.doDiff(self.branch,
+                                self.filePath, self.prevCommit[eid],
+                                self.filePath, eid)
                 
 
     def doDiffSelected(self):
@@ -402,7 +404,9 @@ class HistoryView(QFrame):
                 break
         if blobId1 != blobId2:
             # FIXME copies?
-            self.rgd.doDiff(self.branch, self.filePath, blobId1, self.filePath, blobId2)
+            self.rgd.doDiff(self.branch,
+                            self.filePath, blobId1,
+                            self.filePath, blobId2)
 
 
     def quit(self):

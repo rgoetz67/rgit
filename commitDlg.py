@@ -214,22 +214,9 @@ class CommitDialog(QFrame):
                 commit   = self.rgd.repo.get(commitId)
                 prevBlobId = self.rgd.previousCommit(self.branch, f,
                                                      str(commit.id), commit.commit_time)
-                self.rgd.doDiff(self.branch, f, None, f, eid)
+                self.rgd.doDiff(self.branch, f, eid, f, None)
             
         return
-        for eid in self.rb1:
-            if self.rb1[eid].isChecked() :
-                blobId1 = eid
-                break
-        for eid in self.rb2:
-            if self.rb2[eid].isChecked():
-                blobId2 = eid
-                break
-        if blobId1 != blobId2:
-            self.rgd.doDiff(self.branch, blobId1, blobId2)
-
-
-
 
 
     def quit(self):
