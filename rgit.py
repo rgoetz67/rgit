@@ -186,8 +186,8 @@ class RGitVersions(QMainWindow):
                                            self.doCommitAndPush, "Commit to remote repo"),
             "push" :    self.addToolButton("Push Local\nto Remote", progPath+"/icons/push.png",
                                            self.doPush, "Commit to remote repo"),
-            "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
-                                           None, " Repo Info"),
+#             "info"   :  self.addToolButton("Info",       progPath+"/icons/info.png",
+#                                            None, " Repo Info"),
             "Update" :  self.addToolButton("Update\n or Pull",     progPath+"/icons/update.png",
                                            self.doPull, "Update / Pull Changes"),
             "clone"  :  self.addToolButton("Clone",      progPath+"/icons/checkout.png",
@@ -265,6 +265,9 @@ class RGitVersions(QMainWindow):
         self.menuActions = {"add"     : self.menu["addOnly"].addAction("Add File"),
                             "showN"   : self.menu["addOnly"].addAction("Show Content"),
                             
+                            "diff"    : self.menu["modified"].addAction("Diff Changes"),
+                            "diffR"   : self.menu["modified"].addAction("Diff against Remote"),
+                            "sep0"    : self.menu["modified"].addSeparator(),
                             "commit"  : self.menu["modified"].addAction("Commit && Push"),
                             "commitL" : self.menu["modified"].addAction("Commit Locally"),
                             "sep1"    : self.menu["modified"].addSeparator(),
@@ -294,7 +297,8 @@ class RGitVersions(QMainWindow):
         self.menuActions["add"].triggered.connect(self.doAddFile)
         self.menuActions["showN"].triggered.connect(self.showFileContent)
         
-        self.menuActions["remove"].triggered.connect(self.doDeleteFileFromContext)
+        self.menuActions["diff"].triggered.connect(self.diffWithPrevFromContext)
+        self.menuActions["remove"].triggered.connect(self.diffWithHeadFromContext)
     #    self.menuActions["revert"].triggered.connect(self.doDummy)
         self.menuActions["restore"].triggered.connect(self.doRestoreFile)
         self.menuActions["commit"].triggered.connect(self.doCommitAndPushFromContext)
@@ -989,20 +993,34 @@ class RGitVersions(QMainWindow):
             self.doRestoreFile(f)
 
 
+    def diffWithPrevFromContext(self):
+        self.__diffWithPrev(self.curContextItem)
+
+        
+    def diffWithHeadFromContext(self):
+        self.__diffWithHead(self.curContextItem)
+
+        
     def diffWithPrev(self):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
-            filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
-            print(" DIFF ", filePath, entryId)
-            self.rgd.doDiff(branch, filePath, entryId, filePath, None) 
+            self.__diffWithPrev(sel[0])
+
+        
+    def __diffWithPrev(self, item):
+        filePath, branch, entryId = item.data(0, Qt.UserRole)
+        self.rgd.doDiff(branch, filePath, entryId, filePath, None) 
 
     def diffWithHead(self):
         sel = self.fileTree.selectedItems()
         if len(sel) == 1:
-            filePath, branch, entryId = sel[0].data(0, Qt.UserRole)
-            if filePath in self.rgd.repoFiles:
-                commitId, commitTime, blobId, _ = self.rgd.repoFiles[filePath]["commits"][-1]
-                self.rgd.doDiff(branch, filePath, None, filePath, blobId)
+            self.__diffWithHead(sel[0])
+            
+    def diffWithHead(self, item):
+        filePath, branch, entryId = item.data(0, Qt.UserRole)
+        if filePath in self.rgd.repoFiles:
+            commitId, commitTime, blobId, _ = self.rgd.repoFiles[filePath]["commits"][-1]
+            self.rgd.doDiff(branch, filePath, None, filePath, blobId)
 
 
     def showBlameFromContext(self):

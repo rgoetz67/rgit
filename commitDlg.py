@@ -157,8 +157,8 @@ class CommitDialog(QFrame):
             self.fileItems[f] = item
             self.revertBtn[f].setEnabled(False)
         print("------------")
-        QTimer.singleShot(100, self.show)
-        QTimer.singleShot(1000, self.resizeColumns)
+        QTimer.singleShot( 50, self.show)
+        QTimer.singleShot(100, self.resizeColumns)
 
 
     def resizeColumns(self):
