@@ -1185,7 +1185,7 @@ class RGitVersions(QMainWindow):
         print("DUMMY ACTION")
         pass
     
-    def closeApp(self):
+    def closeApp(self, _1, _2):
         print("CLOSE APP")
         self.bg.stop()
         self.updTimer.stop()
