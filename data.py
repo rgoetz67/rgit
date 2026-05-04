@@ -417,7 +417,7 @@ class RGitData():
         else: # not http
             authCallBack = GitCallbacks(priv_key=self.sshKeys[0], pub_key=self.sshKeys[1])
             try:
-                authCallBack = GitCallbacks(user= auth[0], password=auth[1])
+                #                authCallBack = GitCallbacks(user= auth[0], password=auth[1])
                 repo = pygit2.clone_repository(self.repoUrl, self.tmpRepoPath, bare=False,
                                                callbacks=authCallBack)
                 self.setCredentials(repoUrl, "ssh")

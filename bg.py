@@ -68,6 +68,8 @@ class BackgroundTasks(QRunnable, QObject):
 
 
     def update(self, rgd, mode="rgd"):
+        if  rgd is None:
+            return
         if mode in [ "update", "updateFull"]:
             self.exchange["repoPath"]   = rgd.repoPath
             self.exchange["remoteName"] = rgd.curRemote

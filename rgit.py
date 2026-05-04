@@ -152,7 +152,14 @@ class RGitVersions(QMainWindow):
         self.refetchTimer.timeout.connect(self.bg.refetch)
         self.refetchTimer.setInterval(5000)
         self.refetchTimer.start()
-
+        if self.rgd is not None:
+            repoName = os.path.basename(self.rgd.curRemoteUrl)
+            if repoName[-4:] == ".git":
+                repoName = repoName[:-4]
+            self.setWindowTitle("RGit: %s/%s" %(repoName, self.rgd.curBranch))
+        else:
+            self.setWindowTitle("RGit:")
+        
 
     def initUI(self):
         f = QFrame()
@@ -519,6 +526,10 @@ class RGitVersions(QMainWindow):
         self.fillFileList(self.rootItem)
         self.updateButtonStates()
         self.isFilled =  True
+        repoName = os.path.basename(self.rgd.curRemoteUrl)
+        if repoName[-4:] == ".git":
+            repoName = repoName[:-4]
+        self.setWindowTitle("RGit: %s/%s" %(repoName, self.rgd.curBranch))
 #         if self.repoType == "remote":
 #             self.toolBtn["clone"].setEnabled(True)
 #         else:
@@ -1185,7 +1196,7 @@ class RGitVersions(QMainWindow):
         print("DUMMY ACTION")
         pass
     
-    def closeApp(self, _1, _2):
+    def closeApp(self, _1=None, _2=None):
         print("CLOSE APP")
         self.bg.stop()
         self.updTimer.stop()
@@ -1202,7 +1213,6 @@ if __name__ == '__main__':
 
     app  = QApplication(sys.argv)
     win  = RGitVersions(sys.argv)
-    win.setWindowTitle("RGit")
     signal.signal(signal.SIGINT, win.closeApp)
     appIcon = QIcon()
     appIcon.addFile("icons/rgit.ico")
