@@ -1211,6 +1211,9 @@ if __name__ == '__main__':
 
     QLocale.setDefault(QLocale(QLocale.English, QLocale.UnitedStates))
 
+     if psutil.WINDOWS:
+        myappid = 'rgoetz67.rgit' # arbitrary string
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app  = QApplication(sys.argv)
     win  = RGitVersions(sys.argv)
     signal.signal(signal.SIGINT, win.closeApp)
