@@ -1200,9 +1200,9 @@ class RGitVersions(QMainWindow):
         self.branchSelect.setCurrentText(self.curBranch)
         self.branchSelect.blockSignals(False)
 
-        if self.rootItem is None :
-            self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
-            self.dirTree.addTopLevelItem(self.rootItem)
+        self.dirTree.clear()
+        self.rootItem = QTreeWidgetItem([self.rgd.projectName()])
+        self.dirTree.addTopLevelItem(self.rootItem)
         self.fill(self.curBranch)
         self.fillFileList(self.rootItem)
         self.updateButtonStates()
