@@ -896,12 +896,24 @@ class RGitVersions(QMainWindow):
         for item in sel:
             if item == self.curContextItem:
                 addAll=True
-
+        dsel = self.dirTree.selectedItems()
+        if len(dsel)>0:
+            folder = dsel[0].data(0, Qt.UserRole)[1]
+        else:
+            folder = None
         if addAll:
             for item in sel:
-                self.rgd.addFile(item.text(0))
+                if folder is not None:
+                    f = "%s/%s" %(folder, item.text(0))
+                else:
+                    f = item.text(0)
+                self.rgd.addFile(f)
         else:
-            self.rgd.addFile(self.curContextItem.text(0))
+            if folder is not  None:
+                f = "%s/%s" %(folder, self.curContextItem.text(0))
+            else:
+                f = self.curContextItem.text(0)
+            self.rgd.addFile(f)
         self.refreshStatus()
         self.refreshTrees()
 
