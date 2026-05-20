@@ -40,6 +40,7 @@ if __name__ == '__main__' and not  psutil.WINDOWS:
 import time
 import signal
 import glob
+import fnmatch
 import datetime
 import json
 import subprocess
@@ -443,6 +444,7 @@ class RGitVersions(QMainWindow):
                                  ["HTML / CSS Files", [".html", ".htm", ".css"]],
                                 ["Image Files", [".png", ".jpeg", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".webp"]],
                                  ["Video Files", [".mp4", ".wmv", ".avi", ".webm"]],
+                                 ["Emacs Backup Files", ["*.*~"]],
 #                                 ["Python Files", [".py"]],
 #                                 ["Python Files", [".py"]],
                                  ["Other Files", ["."]]])
@@ -609,13 +611,20 @@ class RGitVersions(QMainWindow):
         allSel = self.fileTypes.getAllItems(returnData = True)
         curSel = self.fileTypes.currentSelection(returnData = True)
         extFilter = {}
+        exclude   = {}
         for extList in allSel:
             for ext in extList:
-                extFilter[ext] = False
+                if "*" in ext:          # don not exclude only if checked
+                    exclude[ext] = True
+                else:
+                    extFilter[ext] = False
         for extList in curSel:
             for ext in extList:
-                extFilter[ext] = True
-        return extFilter
+                if "*" in ext:
+                    exclude[ext] = False
+                else:
+                    extFilter[ext] = True
+        return extFilter, exclude
                 
                 
             
@@ -642,7 +651,7 @@ class RGitVersions(QMainWindow):
 
         localFiles = []
         remoteOnlyFiles = []
-        extFilter  = self.__acceptedExtensions()
+        extFilter, excludeFilter  = self.__acceptedExtensions()
         for f in glob.glob(folder + "/*"):
             if not os.path.isdir(f) and  self.rgd.isAdded(f):
                 print("   local file is ADDED", f)
@@ -660,6 +669,13 @@ class RGitVersions(QMainWindow):
                             if extFilter["."]:  # aka other files
                                 localFiles.append(f)
 
+        for excludePatttern in excludeFilter:
+            if excludeFilter[excludePatttern]:
+                lf = []
+                for f in localFiles:
+                    if not fnmatch.fnmatch(f, excludePatttern):
+                        lf.append(f)
+                localFiles = lf
         
 #         if self.showLocal.isChecked():
 #             extFilter  = self.__acceptedExtensions()
