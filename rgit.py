@@ -676,6 +676,18 @@ class RGitVersions(QMainWindow):
                     if not fnmatch.fnmatch(f, excludePatttern):
                         lf.append(f)
                 localFiles = lf
+
+        lf = []
+        l = len(folder)
+        for f in localFiles:
+            if f[:l] == folder:
+                if f[l] == "/":
+                    lf.append(f[l+1:])
+                else:
+                    lf.append(f[l:])
+            else:
+                lf.append(f)
+        localFiles = lf
         
 #         if self.showLocal.isChecked():
 #             extFilter  = self.__acceptedExtensions()
