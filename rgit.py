@@ -1104,7 +1104,7 @@ class RGitVersions(QMainWindow):
         if len(sel) == 1:
             self.__diffWithHead(sel[0])
             
-    def diffWithHead(self, item):
+    def __diffWithHead(self, item):
         filePath, branch, entryId = item.data(0, Qt.UserRole)
         if filePath in self.rgd.repoFiles:
             commitId, commitTime, blobId, _ = self.rgd.repoFiles[filePath]["commits"][-1]
