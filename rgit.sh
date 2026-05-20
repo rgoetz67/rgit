@@ -33,4 +33,4 @@ then
 	source $P/rg/bin/activate 
     fi
 fi
-"$P/rgit.py"
+"$P/rgit.py" $*
