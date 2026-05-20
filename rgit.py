@@ -116,6 +116,28 @@ class RGitVersions(QMainWindow):
                             "Unknown ++": "#FF44FF ++ ",
                            }
         # self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "MODIFIED", "ADDED", "Not Comitted", "CURRENT"]
+        if len(argv)>1:
+            if os.path.exists(argv[1]):
+                if os.path.isdir(argv[1]):
+                    os.chdir(argv[1])
+            
+        if not os.path.exists(".git"):
+            p0 = os.getcwd()
+            isRoot = False
+            while not os.path.exists(".git"):
+                os.chdir("..")
+                p = os.getcwd() 
+                if sys.platform == "win32":
+                    if len(p)== 3 and p[1:] ==":\\":
+                        isRoot = True
+                        break
+                else:
+                    if p == "/":
+                        isRoot = True
+                        break
+            if isRoot:
+                os.chdir(p0) # if we can't find a .git path above, stay where we are
+
         if os.path.exists(".git"):
             self.rgd         = RGitData(self.config, self.creds, ".", "main")
             self.curBranch   = self.rgd.curBranch
@@ -1195,7 +1217,7 @@ class RGitVersions(QMainWindow):
             
     
     def doDummy(self):
-        print("DUMMY ACTION")
+        print("DqqUMMY ACTION")
         pass
     
     def closeApp(self, _1=None, _2=None):
