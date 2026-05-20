@@ -337,7 +337,7 @@ class CodeDisplay(QFrame):
 
         if path is not None:
             if blobId is not None:
-                commitId, _ = self.rgd.commitByBlob.get(blobId, [None, None])
+                commitId, _ = self.rgd.commitByBlob.get(blobId, [[None, None]])[0]
                 if commitId is not None:
                     self.setWindowTitle("RGit: Content of '%s' @ commit %s"% (path, commitId[:7]))
                 else:
@@ -345,7 +345,7 @@ class CodeDisplay(QFrame):
             else:
                 self.setWindowTitle("RGit: Content of '%s'"% path)
         else:
-            commitId, _ = self.rgd.commitByBlob.get(blobId, [None, None])
+            commitId, _ = self.rgd.commitByBlob.get(blobId, [[None, None]])[0]
             path        = self.rgd.pathByBlob.get(blobId, "?????")
             if commitId is not None:
                 self.setWindowTitle("RGit: Content of '%s' @ commit %s"% (path, commitId[:7]))
