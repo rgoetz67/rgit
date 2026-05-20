@@ -641,7 +641,9 @@ class RGitData():
                 self._newFilesInCommit[commitId].add((blobId, path))
 
         for eid in self.commitByBlob:
-            self.commitByBlob[eid] = list(sorted(self.commitByBlob[eid], key =lambda x:x[1]))
+            tmp = set([ (cid, cts)  for cid, cts in self.commitByBlob[eid]])
+            self.commitByBlob[eid] = list(sorted([[cid, cts]  for cid, cts in tmp], key =lambda x:x[1]))
+
 
         self.remoteOnlyFiles = []
         for f in self.branchFiles[self.curRemoteBranch]:
