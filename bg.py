@@ -161,5 +161,5 @@ def fetchRemote(repo, remoteName , authCallBack):
     for remote in repo.remotes:
         if remote.name == remoteName:
             remote.fetch( callbacks=authCallBack)
-    print("fetch remote done after %7.2fs" %(time.time() -t0))
+    # print("fetch remote done after %7.2fs" %(time.time() -t0))
   
