@@ -9,10 +9,6 @@
 #
 # Description: 
 #
-# Implement self.doRevert
-# Implement List local files (so we can add them)
-# FIX: added files must be listed in commit dialog
-#
 #
 # Context Menu of file and dir entries
 #
@@ -793,6 +789,7 @@ class RGitVersions(QMainWindow):
         sel = self.dirTree.selectedItems()
         if len(sel)>0:
             dirName = sel[0].text(0)
+            folder  =  sel[0].data(0, Qt.UserRole)[1]
         else:
             dirName = None
         self.dirTree.clear()
@@ -802,12 +799,12 @@ class RGitVersions(QMainWindow):
         self.fill(self.curBranch)
         self.rootItem.setExpanded(True)
         if dirName is not None:
-            if dirName == self.rgd.projectName():
+            if dirName == self.rgd.projectName() and folder ==".":
                 self.dirTree.setCurrentItem(self.rootItem)
                 self.showFiles(self.rootItem)
             else:
                 for item, _ in self.dirItems:
-                    if item.text(0) == dirName:
+                    if item.text(0) == dirName and item.data(0, Qt.UserRole)[1] == folder:
                         self.dirTree.setCurrentItem(item)
                         self.showFiles(item)
                         break
