@@ -955,8 +955,9 @@ class RGitVersions(QMainWindow):
 
     def doRestoreFile(self, f = None):
         if f is None or not isinstance(f, str):
-            print("restore  ", self.curContextItem.text(0))
-            f = self.curContextItem.text(0)
+            dsel = self.dirTree.selectedItems()
+            f = "%s/%s" % ( dsel[0].data(0, Qt.UserRole)[1], self.curContextItem.text(0))
+            print("restore  ", f)
         self.rgd.restoreFile(f)
         self.refreshStatus()
         self.refreshTrees()
@@ -1043,7 +1044,7 @@ class RGitVersions(QMainWindow):
         e   = self.rgd.branchFiles[branch][f]
         if len(e["files"])>0:
             for f2 in self.__collectModifiedFiles4Commit( branch, f):
-                if f2 not in files:
+                if f2 not in e["files"]:
                     return f2
         elif self.rgd.isModified(f):
             return [f]
