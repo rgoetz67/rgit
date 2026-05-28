@@ -700,6 +700,9 @@ class RGitData():
                         self.tags[cid] = []
                     self.tags[cid].append(ref[10:])
                     self.updated["tags"] = True
+
+
+
               
 
     def getTagsForCommit(self, cid):
@@ -1204,10 +1207,13 @@ class RGitData():
         if len(self.lastCommitMessages) ==0 or message != self.lastCommitMessages[0]:
             self.lastCommitMessages = [message] + self.lastCommitMessages
         self.addedFiles= set()
-        print(">>>>> NEW COMMIT = ", new_commit)
+        print(">>>>> NEW COMMIT = ",new_commit)
         if pushToRemote:
             self.push()
         self.updatePrimary()
+        if pushToRemote:
+            self.collectTags()
+#            self.collectTagForCommit(new_commit)
 #         for branch in self.primaryBranches:
 #             self.latestCommit[branch] = self.getBranchFiles(branch)
 #             self.collectCommits(branch,verbose = True)
@@ -1219,7 +1225,7 @@ class RGitData():
     def push(self, remote_name='origin', branch="main"):
         for remote in self.repo.remotes:
             if remote.name == remote_name:
-                remote.push(['refs/heads/'+branch], callbacks = self.authCallBack)
+                cid = remote.push(['refs/heads/'+branch], callbacks = self.authCallBack)
 
 
     def fetch(self, remote_name=None, branch=None):
