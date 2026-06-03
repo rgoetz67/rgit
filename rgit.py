@@ -89,12 +89,14 @@ class RGitVersions(QMainWindow):
         self.config, self.creds = loadSettings()
         self.statusColor = {"CURRENT"           : "#FFFFFF",
                             "MODIFIED"          : "#FF8888",
+                            "Not pushed"        : "#F08878",
                             "ADDED"             : "#FFBB88",
                             "DELETED"           : "#EE7777",
                             "Deleted on Remote" : "#CCEE66",
                             "Remote Update"     : "#AAFFAA",
                             "Only On Remote"    : "#AAFF99",
                             "CONFLICT"          : "#FFCC88",
+                            "Missing Commits"   : "#ECA576",
                             "Not Commited"      : "#CC88FF",
                             "not versioned"     : "#F4F0F0",
                             "removed from Repo" : "#F8ECEC",
@@ -103,12 +105,14 @@ class RGitVersions(QMainWindow):
                             "Unknown"       : "#FF88FF",
                             "No Status"     : "#EEDDDD",
                             "MODIFIED ++"   : "#FF4444",
+                            "Not pushed ++" : "#F07058",
                             "ADDED ++"      : "#FFCC44",
                             "DELETED ++"    : "#DD4444",
                             "Deleted on Remote ++" : "#CCEE44",
                             "Remote Update ++"     : "#AAFF66",
                             "Only On Remote ++"    : "#AAFF55",
-                            "CONFLICT ++ "         : "#FFDD44",
+                            "CONFLICT ++ "         : "#FFB050",
+                            "Missing Commits ++"   : "#EC8545",
                             "Not Commited ++"      : "#CC88FF",
                             "Unknown ++": "#FF44FF ++ ",
                            }
@@ -957,7 +961,6 @@ class RGitVersions(QMainWindow):
         if f is None or not isinstance(f, str):
             dsel = self.dirTree.selectedItems()
             f = "%s/%s" % ( dsel[0].data(0, Qt.UserRole)[1], self.curContextItem.text(0))
-            print("restore  ", f)
         self.rgd.restoreFile(f)
         self.refreshStatus()
         self.refreshTrees()

@@ -274,7 +274,9 @@ class RGitData():
         self.currentCommit  = {}  # list fort each branch the last commit registered
         self.updated      = {"rf" : False,"tags": False, "cbp": False}
 
-        self.statusOrder = ["Unknown", "CONFLICT", "Remote Update", "Only on Remote", "Deleted On Remote", "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
+        self.statusOrder = ["Unknown", "Missing Commits", "CONFLICT", "Remote Update",
+                            "Only on Remote", "Deleted On Remote", "Not pushed",
+                            "MODIFIED", "ADDED", "DELETED", "CURRENT", "Not Comitted", "removed from Repo"]
         if "diffCommand" in self.config:
             self.diffCommand = self.config["diffCommand"]
         else:
@@ -937,11 +939,24 @@ class RGitData():
         
         updateAvailable = False
         missingOnRemote = False
+        missingCommits  = False
+        notPushed       = False
         if path in self.branchFiles[self.curRemoteBranch]:
             
             if     self.branchFiles[self.curRemoteBranch][path]["id"] != \
                    self.branchFiles[self.curBranch][path]["id"]:
-                updateAvailable = True
+                cidRemote = self.commitByBlob.get(self.branchFiles[self.curRemoteBranch][path]["id"] , None)
+                cidLocal = self.commitByBlob.get(self.branchFiles[self.curBranch][path]["id"], None)
+                if cidRemote is  None or cidLocal is None:
+                    missingCommits  = True
+                else:
+                    remoteCommitTime = self.repo.get(cidRemote).commit_time
+                    localCommitTime  = self.repo.get(cidLocal).commit_time
+
+                    if remoteCommitTime > localCommitTime:
+                        updateAvailable = True
+                    else:
+                        notPushed = True
         else:
             if status == "CURRENT":
                 status="Deleted on Remote"
@@ -955,6 +970,10 @@ class RGitData():
         if path in self.repoFiles and not missingOnRemote:
             if "lastCommit" not in self.repoFiles[path] :
                 status = "Not Commited"
+            elif missingCommits:
+                status = "Missing Commits"
+            elif notPushed:
+                status = "Not pushed"
             elif updateAvailable:
                 if status == "CURRENT":
                     status="Remote Update"
@@ -1007,6 +1026,8 @@ class RGitData():
     def __getDirStatus(self, branch,  path, useDirStatusCache=None):
         files = self.branchFiles[branch][path]["files"]
         mergedStatus = {"Not Commited": False,
+                        "Missing Commits" : False,
+                        "Local Changes not pushed" : False,
                         "CURRENT"     : False,
                         "MODIFIED"    : False,
                         "ADDED"       : False,
